@@ -255,22 +255,20 @@ function playEpisode(eid, num) {
     CURRENT_STREAMS = streams;
     CURRENT_SUBTITLES = subs;
     if (!streams.length) { document.getElementById("player-subtitles").innerHTML = '<span class="error">No streams</span>'; return; }
-    var url = streams[0].url;
-    var proxyUrl = "https://anim-proxy.ahaantadi.workers.dev/proxy?url=" + encodeURIComponent(url);
+        var url = streams[0].url;
     v.crossOrigin = "anonymous";
     if (url.indexOf(".mp4") > -1 || streams[0].type === "mp4") {
-      v.src = proxyUrl; v.load();
+      v.src = url; v.load();
     } else {
       if (v.canPlayType("application/vnd.apple.mpegurl")) {
-        v.src = proxyUrl; v.load();
+        v.src = url; v.load();
       } else if (window.Hls && window.Hls.isSupported()) {
         var hls = new window.Hls(); window._hls = hls;
-        hls.loadSource(proxyUrl); hls.attachMedia(v);
+        hls.loadSource(url); hls.attachMedia(v);
       } else {
         document.getElementById("player-subtitles").innerHTML = '<span class="error">HLS not supported</span>';
       }
-    }
-    var sh = "";
+       var sh = "";
     if (subs.length) {
       sh = 'Subtitles: <select onchange="changeSub(this.value)"><option value="">None</option>';
       for (var j = 0; j < subs.length; j++) sh += '<option value="' + j + '">' + (subs[j].label || "Sub " + (j+1)) + '</option>';
