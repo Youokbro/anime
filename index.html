@@ -256,16 +256,16 @@ function playEpisode(eid, num) {
     CURRENT_SUBTITLES = subs;
     if (!streams.length) { document.getElementById("player-subtitles").innerHTML = '<span class="error">No streams</span>'; return; }
     var url = streams[0].url;
+    var proxyUrl = "https://anim-proxy.ahaantadi.workers.dev/proxy?url=" + encodeURIComponent(url);
     v.crossOrigin = "anonymous";
     if (url.indexOf(".mp4") > -1 || streams[0].type === "mp4") {
-      v.src = url; v.load();
+      v.src = proxyUrl; v.load();
     } else {
-      var hlsUrl = API_BASE + "/proxy/playlist?url=" + encodeURIComponent(url);
       if (v.canPlayType("application/vnd.apple.mpegurl")) {
-        v.src = hlsUrl; v.load();
+        v.src = proxyUrl; v.load();
       } else if (window.Hls && window.Hls.isSupported()) {
         var hls = new window.Hls(); window._hls = hls;
-        hls.loadSource(hlsUrl); hls.attachMedia(v);
+        hls.loadSource(proxyUrl); hls.attachMedia(v);
       } else {
         document.getElementById("player-subtitles").innerHTML = '<span class="error">HLS not supported</span>';
       }
