@@ -112,6 +112,7 @@ var CURRENT_STREAMS = [];
 var CURRENT_SUBTITLES = [];
 var CURRENT_ANIME_ID = 0;
 var CURRENT_ANIME_TITLE = "";
+var CURRENT_ANIME_ROMAJI = "";
 var CURRENT_HIANIME_EPS = []; // hiAnime episode fallback data
 var CURRENT_PROVIDER = "AnimeSaturn";
 var PROVIDERS = ["moo", "bee", "pewe", "kiwi", "ally", "bonk", "hop"];
@@ -227,6 +228,7 @@ function openDetail(id) {
     var img = getImg(info);
     var title = getTitle(info);
     CURRENT_ANIME_TITLE = title;
+    CURRENT_ANIME_ROMAJI = (info.title && info.title.romaji) || title;
     var desc = (info.description || "").replace(/<[^>]*>/g, "");
     var html = '';
     if (img) html += '<div class="banner"><img src="' + img + '" alt=""><div class="banner-overlay"><h1>' + title + '</h1></div></div>';
@@ -301,20 +303,28 @@ function playEpisode(num) {
       if (CURRENT_HIANIME_EPS.length) { playHianimeEpisode(num); return; }
       // Otherwise search once
       if (!HIANIME_ID) {
-        consumetGet("/search?q=" + encodeURIComponent(CURRENT_ANIME_TITLE), function(err2, sd) {
-          if (sd && sd.results && sd.results.length) {
-            HIANIME_ID = sd.results[0].id;
-            CURRENT_PROVIDER = sd._provider || sd.results[0]._provider || "AnimeSaturn";
-            consumetGet("/info?id=" + HIANIME_ID + "&provider=" + CURRENT_PROVIDER, function(err3, info) {
-              if (info && info.episodes) CURRENT_HIANIME_EPS = info.episodes;
-              playHianimeEpisode(num);
-            });
-          } else {
-            var mu = "https://miruro.tv/search?q=" + encodeURIComponent(CURRENT_ANIME_TITLE);
-            controlsEl.innerHTML = 'This episode is from <b>' + provider + '</b> (API failed). '
-              + '<br><br><a class="ext-link" href="' + mu + '" target="_blank">Open on Miruro.to</a>';
-          }
-        });
+        var searchQ = CURRENT_ANIME_TITLE;
+        var triedRomaji = false;
+        (function doSearch() {
+          consumetGet("/search?q=" + encodeURIComponent(searchQ), function(err2, sd) {
+            if (sd && sd.results && sd.results.length) {
+              HIANIME_ID = sd.results[0].id;
+              CURRENT_PROVIDER = sd._provider || sd.results[0]._provider || "AnimeSaturn";
+              consumetGet("/info?id=" + HIANIME_ID + "&provider=" + CURRENT_PROVIDER, function(err3, info) {
+                if (info && info.episodes) CURRENT_HIANIME_EPS = info.episodes;
+                playHianimeEpisode(num);
+              });
+            } else if (!triedRomaji && CURRENT_ANIME_ROMAJI && CURRENT_ANIME_ROMAJI !== CURRENT_ANIME_TITLE) {
+              triedRomaji = true;
+              searchQ = CURRENT_ANIME_ROMAJI;
+              doSearch();
+            } else {
+              var mu = "https://miruro.tv/search?q=" + encodeURIComponent(CURRENT_ANIME_TITLE);
+              controlsEl.innerHTML = 'This episode is from <b>' + provider + '</b> (API failed). '
+                + '<br><br><a class="ext-link" href="' + mu + '" target="_blank">Open on Miruro.to</a>';
+            }
+          });
+        })();
       } else {
         playHianimeEpisode(num);
       }
@@ -418,14 +428,47 @@ function closePlayer() {
 
 // HiAnime fallback
 var HIANIME_ID = "";
-function loadHianimeEpisodes() {
-  var el = document.getElementById("ep-list");
-  el.innerHTML = '<div class="loading">Loading episodes (HiAnime)...</div>';
-  consumetGet("/search?q=" + encodeURIComponent(CURRENT_ANIME_TITLE), function(err, data) {
+function doConsumetSearch(query, fallback) {
+  consumetGet("/search?q=" + encodeURIComponent(query), function(err, data) {
     if (err || !data.results || !data.results.length) {
-      el.innerHTML = '<div class="error">No episodes from any source</div>';
+      if (fallback) { fallback(); return; }
+      document.getElementById("ep-list").innerHTML = '<div class="error">No episodes from any source</div>';
       return;
     }
+    HIANIME_ID = data.results[0].id;
+    CURRENT_PROVIDER = data._provider || data.results[0]._provider || "AnimeSaturn";
+    consumetGet("/info?id=" + HIANIME_ID + "&provider=" + CURRENT_PROVIDER, function(err2, info) {
+      var el = document.getElementById("ep-list");
+      if (err2 || !info.episodes || !info.episodes.length) {
+        el.innerHTML = '<div class="error">No episodes from HiAnime</div>';
+        return;
+      }
+      CURRENT_HIANIME_EPS = info.episodes;
+      var tbl = '<table class="episode-table"><tr><th>#</th><th>Title</th><th>Source</th></tr>';
+      for (var i = 0; i < info.episodes.length; i++) {
+        var ep = info.episodes[i];
+        var num = ep.number;
+        var ttl = "Episode " + num;
+        tbl += '<tr onclick="playHianimeEpisode(' + num + ')">';
+        tbl += '<td>' + num + '</td><td>' + ttl + '</td><td><span style="color:#38bdf8">Consumet</span></td></tr>';
+      }
+      el.innerHTML = tbl + '</table>';
+    });
+  });
+}
+
+function loadHianimeEpisodes() {
+  var el = document.getElementById("ep-list");
+  el.innerHTML = '<div class="loading">Loading episodes (Consumet)...</div>';
+  doConsumetSearch(CURRENT_ANIME_TITLE, function() {
+    if (CURRENT_ANIME_ROMAJI && CURRENT_ANIME_ROMAJI !== CURRENT_ANIME_TITLE) {
+      el.innerHTML = '<div class="loading">Trying alternate title...</div>';
+      doConsumetSearch(CURRENT_ANIME_ROMAJI, null);
+    } else {
+      el.innerHTML = '<div class="error">No episodes from any source</div>';
+    }
+  });
+}
     HIANIME_ID = data.results[0].id;
     CURRENT_PROVIDER = data._provider || data.results[0]._provider || "AnimeSaturn";
     consumetGet("/info?id=" + HIANIME_ID + "&provider=" + CURRENT_PROVIDER, function(err2, info) {
