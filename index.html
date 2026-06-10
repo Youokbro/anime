@@ -105,18 +105,32 @@ input,button{font-size:16px}
 <script>
 var API_BASE = "https://miruro-api-navy.vercel.app";
 var PROXY_BASE = "https://anim-proxy.ahaantadi.workers.dev";
+var CONSUMET_API = "https://anime-api-nu-eight.vercel.app";
 var CURRENT_EPISODES = [];
 var CURRENT_EPISODES_MAP = {};
 var CURRENT_STREAMS = [];
 var CURRENT_SUBTITLES = [];
 var CURRENT_ANIME_ID = 0;
 var CURRENT_ANIME_TITLE = "";
+var CURRENT_HIANIME_EPS = []; // hiAnime episode fallback data
 var PROVIDERS = ["moo", "bee", "pewe", "kiwi", "ally", "bonk", "hop"];
 var _lastPage = "home";
 
 function apiGet(path, cb) {
   var x = new XMLHttpRequest();
   x.open("GET", API_BASE + path, true);
+  x.onreadystatechange = function() {
+    if (x.readyState === 4) {
+      if (x.status === 200) { try { cb(null, JSON.parse(x.responseText)); } catch(e) { cb("Parse error"); } }
+      else { cb("Error " + x.status); }
+    }
+  };
+  x.send();
+}
+
+function consumetGet(path, cb) {
+  var x = new XMLHttpRequest();
+  x.open("GET", CONSUMET_API + path, true);
   x.onreadystatechange = function() {
     if (x.readyState === 4) {
       if (x.status === 200) { try { cb(null, JSON.parse(x.responseText)); } catch(e) { cb("Parse error"); } }
@@ -222,7 +236,7 @@ function openDetail(id) {
     c.innerHTML = html;
     apiGet("/episodes/" + id, function(err2, eps) {
       var el = document.getElementById("ep-list");
-      if (err2) { el.innerHTML = '<div class="error">' + err2 + '</div>'; return; }
+      if (err2) { loadHianimeEpisodes(); return; }
       var provs = eps.providers || {};
       // Merge episodes from ALL providers by number
       var flat = [];
@@ -282,10 +296,26 @@ function playEpisode(num) {
   apiGet("/" + eid, function(err, data) {
     var controlsEl = document.getElementById("player-controls");
     if (err) {
-      var miruroUrl = "https://miruro.tv/search?q=" + encodeURIComponent(CURRENT_ANIME_TITLE);
-      controlsEl.innerHTML = 'This episode is from <b>' + provider + '</b> (API failed). '
-        + '<br><br><a class="ext-link" href="' + miruroUrl + '" target="_blank">'
-        + 'Open on Miruro.to</a>';
+      // Try HiAnime fallback
+      if (CURRENT_HIANIME_EPS.length) { playHianimeEpisode(num); return; }
+      // Otherwise search once
+      if (!HIANIME_ID) {
+        consumetGet("/search?q=" + encodeURIComponent(CURRENT_ANIME_TITLE), function(err2, sd) {
+          if (sd && sd.results && sd.results.length) {
+            HIANIME_ID = sd.results[0].id;
+            consumetGet("/info?id=" + HIANIME_ID, function(err3, info) {
+              if (info && info.episodes) CURRENT_HIANIME_EPS = info.episodes;
+              playHianimeEpisode(num);
+            });
+          } else {
+            var mu = "https://miruro.tv/search?q=" + encodeURIComponent(CURRENT_ANIME_TITLE);
+            controlsEl.innerHTML = 'This episode is from <b>' + provider + '</b> (API failed). '
+              + '<br><br><a class="ext-link" href="' + mu + '" target="_blank">Open on Miruro.to</a>';
+          }
+        });
+      } else {
+        playHianimeEpisode(num);
+      }
       return;
     }
     var streams = data.streams || [];
@@ -301,11 +331,14 @@ function playEpisode(num) {
       for (var s = 0; s < streams.length; s++) {
         if (streams[s].type === "embed") { embedUrl = streams[s].url; break; }
       }
+      var html = '<div style="text-align:center;padding:10px">';
       if (embedUrl) {
-        controlsEl.innerHTML = '<a class="ext-link" href="' + embedUrl + '" target="_blank">Open player in new tab</a>';
+        html += '<a class="ext-link" href="' + embedUrl + '" target="_blank">Open player in new tab</a><br><br>';
       } else {
-        controlsEl.innerHTML = '<span class="error">No playable streams</span>';
+        html += '<div class="error">No playable streams from this provider</div><br>';
       }
+      html += '<button class="ext-link" onclick="playHianimeEpisode(' + num + ')" style="background:#555;cursor:pointer">Try HiAnime</button>';
+      controlsEl.innerHTML = html + '</div>';
       return;
     }
     CURRENT_STREAMS = playable;
@@ -379,6 +412,104 @@ function closePlayer() {
   v.pause(); v.src = "";
   if (window._hls) { window._hls.destroy(); window._hls = null; }
   showPage("detail");
+}
+
+// HiAnime fallback
+var HIANIME_ID = "";
+function loadHianimeEpisodes() {
+  var el = document.getElementById("ep-list");
+  el.innerHTML = '<div class="loading">Loading episodes (HiAnime)...</div>';
+  consumetGet("/search?q=" + encodeURIComponent(CURRENT_ANIME_TITLE), function(err, data) {
+    if (err || !data.results || !data.results.length) {
+      el.innerHTML = '<div class="error">No episodes from any source</div>';
+      return;
+    }
+    HIANIME_ID = data.results[0].id;
+    consumetGet("/info?id=" + HIANIME_ID, function(err2, info) {
+      if (err2 || !info.episodes || !info.episodes.length) {
+        el.innerHTML = '<div class="error">No episodes from HiAnime</div>';
+        return;
+      }
+      CURRENT_HIANIME_EPS = info.episodes;
+      var tbl = '<table class="episode-table"><tr><th>#</th><th>Title</th><th>HiAnime</th></tr>';
+      for (var i = 0; i < info.episodes.length; i++) {
+        var ep = info.episodes[i];
+        var num = ep.number;
+        var ttl = "Episode " + num;
+        tbl += '<tr onclick="playHianimeEpisode(' + num + ')">';
+        tbl += '<td>' + num + '</td><td>' + ttl + '</td><td><span style="color:#38bdf8">HiAnime</span></td></tr>';
+      }
+      el.innerHTML = tbl + '</table>';
+    });
+  });
+}
+
+function playHianimeEpisode(num) {
+  showPage("player");
+  var v = document.getElementById("player-video");
+  v.pause(); v.src = ""; v.innerHTML = "";
+  if (window._hls) { window._hls.destroy(); window._hls = null; }
+  document.getElementById("player-info").innerHTML = CURRENT_ANIME_TITLE + " - Ep " + num + " (HiAnime)";
+  document.getElementById("player-controls").innerHTML = '<span class="loading">Loading HiAnime stream...</span>';
+  document.getElementById("player-subtitles").innerHTML = "";
+
+  var ep = null;
+  for (var i = 0; i < CURRENT_HIANIME_EPS.length; i++) {
+    if (CURRENT_HIANIME_EPS[i].number === num) { ep = CURRENT_HIANIME_EPS[i]; break; }
+  }
+  if (!ep || !ep.id) {
+    document.getElementById("player-controls").innerHTML = '<div class="error">Episode not found on HiAnime</div>';
+    return;
+  }
+
+  consumetGet("/watch?id=" + ep.id, function(err, data) {
+    var controlsEl = document.getElementById("player-controls");
+    if (err || !data.sources || !data.sources.length) {
+      var miruroUrl = "https://miruro.tv/search?q=" + encodeURIComponent(CURRENT_ANIME_TITLE);
+      controlsEl.innerHTML = 'HiAnime failed. <br><br><a class="ext-link" href="' + miruroUrl + '" target="_blank">Open on Miruro.to</a>';
+      return;
+    }
+    var src = data.sources[0];
+    var url = src.url;
+    var ref = data.referer || "https://hianime.to";
+    var proxyUrl = PROXY_BASE + "/proxy?url=" + encodeURIComponent(url) + "&referer=" + encodeURIComponent(ref);
+
+    CURRENT_STREAMS = data.sources;
+    CURRENT_SUBTITLES = data.tracks || [];
+
+    var controlsHtml = '<div class="c" style="width:auto"><label>Quality:</label></div><div class="c" style="width:auto">';
+    controlsHtml += '<select id="quality-select" onchange="changeQuality()">';
+    for (var q = 0; q < data.sources.length; q++) {
+      var qlabel = data.sources[q].quality || "Auto";
+      controlsHtml += '<option value="' + q + '"' + (q === 0 ? " selected" : "") + ">" + qlabel + "</option>";
+    }
+    controlsHtml += '</select></div>';
+
+    if (data.tracks && data.tracks.length) {
+      controlsHtml += '<div class="c" style="width:auto"><label>Subs:</label></div><div class="c" style="width:auto">';
+      controlsHtml += '<select onchange="changeSub(this.value)"><option value="">None</option>';
+      for (var j = 0; j < data.tracks.length; j++) {
+        controlsHtml += '<option value="' + j + '">' + (data.tracks[j].label || "Track " + (j+1)) + "</option>";
+      }
+      controlsHtml += '</select></div>';
+    }
+    controlsEl.innerHTML = controlsHtml;
+
+    // Load video
+    v.crossOrigin = "anonymous";
+    if (src.isM3U8 || url.indexOf(".m3u8") > -1) {
+      if (v.canPlayType("application/vnd.apple.mpegurl")) {
+        v.src = proxyUrl; v.load();
+      } else if (window.Hls && window.Hls.isSupported()) {
+        var hls = new window.Hls(); window._hls = hls;
+        hls.loadSource(proxyUrl); hls.attachMedia(v);
+      } else {
+        controlsEl.innerHTML = '<span class="error">HLS not supported in this browser</span>';
+      }
+    } else {
+      v.src = proxyUrl; v.load();
+    }
+  });
 }
 
 loadHome();
