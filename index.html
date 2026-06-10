@@ -271,6 +271,7 @@ function playEpisode(num) {
   var ep = CURRENT_EPISODES_MAP[num];
   if (!ep) return;
   var eid = ep.id || "";
+  var provider = ep._provider || "unknown";
   showPage("player");
   var v = document.getElementById("player-video");
   v.pause(); v.src = ""; v.innerHTML = "";
@@ -280,7 +281,13 @@ function playEpisode(num) {
   document.getElementById("player-subtitles").innerHTML = "";
   apiGet("/" + eid, function(err, data) {
     var controlsEl = document.getElementById("player-controls");
-    if (err) { controlsEl.innerHTML = '<span class="error">' + err + '</span>'; return; }
+    if (err) {
+      var miruroUrl = "https://miruro.tv/search?q=" + encodeURIComponent(CURRENT_ANIME_TITLE);
+      controlsEl.innerHTML = 'This episode is from <b>' + provider + '</b> (API failed). '
+        + '<br><br><a class="ext-link" href="' + miruroUrl + '" target="_blank">'
+        + 'Open on Miruro.to</a>';
+      return;
+    }
     var streams = data.streams || [];
     var subs = data.subtitles || [];
     CURRENT_SUBTITLES = subs;
@@ -295,7 +302,7 @@ function playEpisode(num) {
         if (streams[s].type === "embed") { embedUrl = streams[s].url; break; }
       }
       if (embedUrl) {
-        controlsEl.innerHTML = '<a class="ext-link" href="' + embedUrl + '" target="_blank">Open in new tab</a>';
+        controlsEl.innerHTML = '<a class="ext-link" href="' + embedUrl + '" target="_blank">Open player in new tab</a>';
       } else {
         controlsEl.innerHTML = '<span class="error">No playable streams</span>';
       }
