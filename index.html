@@ -113,6 +113,7 @@ var CURRENT_SUBTITLES = [];
 var CURRENT_ANIME_ID = 0;
 var CURRENT_ANIME_TITLE = "";
 var CURRENT_HIANIME_EPS = []; // hiAnime episode fallback data
+var CURRENT_PROVIDER = "AnimeSaturn";
 var PROVIDERS = ["moo", "bee", "pewe", "kiwi", "ally", "bonk", "hop"];
 var _lastPage = "home";
 
@@ -303,7 +304,8 @@ function playEpisode(num) {
         consumetGet("/search?q=" + encodeURIComponent(CURRENT_ANIME_TITLE), function(err2, sd) {
           if (sd && sd.results && sd.results.length) {
             HIANIME_ID = sd.results[0].id;
-            consumetGet("/info?id=" + HIANIME_ID, function(err3, info) {
+            CURRENT_PROVIDER = sd._provider || sd.results[0]._provider || "AnimeSaturn";
+            consumetGet("/info?id=" + HIANIME_ID + "&provider=" + CURRENT_PROVIDER, function(err3, info) {
               if (info && info.episodes) CURRENT_HIANIME_EPS = info.episodes;
               playHianimeEpisode(num);
             });
@@ -425,7 +427,8 @@ function loadHianimeEpisodes() {
       return;
     }
     HIANIME_ID = data.results[0].id;
-    consumetGet("/info?id=" + HIANIME_ID, function(err2, info) {
+    CURRENT_PROVIDER = data._provider || data.results[0]._provider || "AnimeSaturn";
+    consumetGet("/info?id=" + HIANIME_ID + "&provider=" + CURRENT_PROVIDER, function(err2, info) {
       if (err2 || !info.episodes || !info.episodes.length) {
         el.innerHTML = '<div class="error">No episodes from HiAnime</div>';
         return;
@@ -462,7 +465,7 @@ function playHianimeEpisode(num) {
     return;
   }
 
-  consumetGet("/watch?id=" + ep.id, function(err, data) {
+  consumetGet("/watch?id=" + ep.id + "&provider=" + CURRENT_PROVIDER, function(err, data) {
     var controlsEl = document.getElementById("player-controls");
     if (err || !data.sources || !data.sources.length) {
       var miruroUrl = "https://miruro.tv/search?q=" + encodeURIComponent(CURRENT_ANIME_TITLE);
