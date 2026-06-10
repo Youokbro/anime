@@ -206,9 +206,11 @@ function openDetail(id) {
     apiGet("/episodes/" + id, function(err2, eps) {
       var el = document.getElementById("ep-list");
       if (err2) { el.innerHTML = '<div class="error">' + err2 + '</div>'; return; }
-      var flat = [];
+       var flat = [];
       var provs = eps.providers || {};
-      for (var p in provs) {
+      var providersOrder = ["moo", "bee", "pewe", "kiwi", "arc", "zoro", "jet"];
+      for (var o = 0; o < providersOrder.length; o++) {
+        var p = providersOrder[o];
         if (!provs[p] || !provs[p].episodes) continue;
         var cats = provs[p].episodes;
         var list = null;
@@ -224,6 +226,7 @@ function openDetail(id) {
           break;
         }
       }
+
       if (!flat.length) { el.innerHTML = '<div class="error">No episodes</div>'; return; }
       CURRENT_EPISODES = flat;
       var tbl = '<table class="episode-table"><tr><th>#</th><th>Title</th><th>Aired</th></tr>';
