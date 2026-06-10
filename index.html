@@ -517,7 +517,7 @@ function playHianimeEpisode(num) {
     }
     var src = data.sources[0];
     var url = src.url;
-    var ref = data.referer || "https://hianime.to";
+    var ref = data.referer || "https://www.animesaturn.cx";
     var proxyUrl = PROXY_BASE + "/proxy?url=" + encodeURIComponent(url) + "&referer=" + encodeURIComponent(ref);
 
     CURRENT_STREAMS = data.sources;
