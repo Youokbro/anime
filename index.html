@@ -471,26 +471,6 @@ function loadHianimeEpisodes() {
     }
   });
 }
-    HIANIME_ID = data.results[0].id;
-    CURRENT_PROVIDER = data._provider || data.results[0]._provider || "AnimeSaturn";
-    consumetGet("/info?id=" + HIANIME_ID + "&provider=" + CURRENT_PROVIDER, function(err2, info) {
-      if (err2 || !info.episodes || !info.episodes.length) {
-        el.innerHTML = '<div class="error">No episodes from HiAnime</div>';
-        return;
-      }
-      CURRENT_HIANIME_EPS = info.episodes;
-      var tbl = '<table class="episode-table"><tr><th>#</th><th>Title</th><th>HiAnime</th></tr>';
-      for (var i = 0; i < info.episodes.length; i++) {
-        var ep = info.episodes[i];
-        var num = ep.number;
-        var ttl = "Episode " + num;
-        tbl += '<tr onclick="playHianimeEpisode(' + num + ')">';
-        tbl += '<td>' + num + '</td><td>' + ttl + '</td><td><span style="color:#38bdf8">HiAnime</span></td></tr>';
-      }
-      el.innerHTML = tbl + '</table>';
-    });
-  });
-}
 
 function playHianimeEpisode(num) {
   showPage("player");
