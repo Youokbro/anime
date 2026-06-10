@@ -7,51 +7,52 @@
 <style>
 
 *{margin:0;padding:0;box-sizing:border-box}
-body{background:#111;color:#eee;font-family:-apple-system,Helvetica,Arial,sans-serif;font-size:14px}
+html,body{height:100%}
+body{background:#000;color:#eee;font-family:-apple-system,Helvetica,Arial,sans-serif;font-size:14px;overflow-x:hidden}
 input,button{font-size:16px}
 .page{display:none}
 .page.active{display:block}
-.nav{background:#1a1a1a;padding:8px 12px;display:table;width:100%;border-bottom:1px solid #333}
+.nav{background:#0a0a0a;padding:8px 12px;display:table;width:100%;border-bottom:1px solid #1a1a1a}
 .nav-cell{display:table-cell;vertical-align:middle}
 .nav-title{font-size:18px;font-weight:bold;color:#38bdf8}
 .nav-back{color:#38bdf8;font-size:16px;padding:4px 8px;background:none;border:1px solid #38bdf8;border-radius:4px;cursor:pointer}
-.search-wrap{padding:10px 12px;background:#1a1a1a;border-bottom:1px solid #333}
+.search-wrap{padding:10px 12px;background:#0a0a0a;border-bottom:1px solid #1a1a1a}
 .search-row{display:table;width:100%}
 .search-row .c{display:table-cell;vertical-align:middle}
-.search-row input{width:100%;padding:8px 10px;border:1px solid #444;border-radius:4px;background:#222;color:#eee;outline:none}
-.search-row button{padding:8px 14px;margin-left:6px;border:none;border-radius:4px;background:#38bdf8;color:#111;font-weight:bold;cursor:pointer}
+.search-row input{width:100%;padding:8px 10px;border:1px solid #333;border-radius:4px;background:#111;color:#eee;outline:none}
+.search-row button{padding:8px 14px;margin-left:6px;border:none;border-radius:4px;background:#38bdf8;color:#000;font-weight:bold;cursor:pointer}
 .section-title{padding:12px 12px 6px;font-size:16px;font-weight:bold;color:#38bdf8}
 .card-table{margin:0 8px 16px}
 .card-table table{width:100%;border-collapse:collapse}
 .card-table td{width:25%;padding:6px;text-align:center;vertical-align:top}
-.poster-card{display:block;background:#1a1a1a;border-radius:4px;overflow:hidden;cursor:pointer}
-.poster-card img{width:100%;display:block;min-height:140px;background:#222}
+.poster-card{display:block;background:#0a0a0a;border-radius:4px;overflow:hidden;cursor:pointer}
+.poster-card img{width:100%;display:block;min-height:140px;background:#111}
 .poster-card .label{padding:6px 4px;font-size:11px;color:#ccc;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .banner{width:100%;position:relative}
 .banner img{width:100%;display:block}
-.banner-overlay{background:linear-gradient(transparent,#111);padding:12px;position:absolute;bottom:0;left:0;right:0}
+.banner-overlay{background:linear-gradient(transparent,#000);padding:12px;position:absolute;bottom:0;left:0;right:0}
 .banner-overlay h1{font-size:20px;color:#fff}
 .detail-body{padding:12px}
 .detail-desc{color:#aaa;font-size:13px;line-height:1.5;margin-bottom:12px}
 .episode-table{width:100%;border-collapse:collapse}
-.episode-table th{background:#1a1a1a;padding:8px 10px;text-align:left;font-size:12px;color:#888;border-bottom:1px solid #333}
-.episode-table td{padding:8px 10px;font-size:13px;border-bottom:1px solid #2a2a2a;cursor:pointer}
-.episode-table tr:nth-child(odd) td{background:#1a1a1a}
-.episode-table tr:nth-child(even) td{background:#222}
+.episode-table th{background:#0a0a0a;padding:8px 10px;text-align:left;font-size:12px;color:#888;border-bottom:1px solid #1a1a1a}
+.episode-table td{padding:8px 10px;font-size:13px;border-bottom:1px solid #1a1a1a;cursor:pointer}
+.episode-table tr:nth-child(odd) td{background:#0a0a0a}
+.episode-table tr:nth-child(even) td{background:#050505}
 .episode-table tr td:first-child{width:40px;color:#38bdf8;text-align:center}
-.episode-table tr:hover td{background:#2a2a2a}
+.episode-table tr:hover td{background:#1a1a1a}
 #player-page{position:fixed;top:0;left:0;right:0;bottom:0;z-index:100;background:#000}
-#player-page video{width:100%;height:auto;max-height:80vh;display:block;margin:0 auto;background:#000}
-.player-top{background:rgba(0,0,0,0.8);padding:8px 12px;display:table;width:100%}
+#player-page video{width:100%;height:auto;display:block;margin:0 auto;background:#000}
+.player-top{background:rgba(0,0,0,0.9);padding:8px 12px;display:table;width:100%}
 .player-top .c{display:table-cell;vertical-align:middle}
 .player-info{font-size:13px;color:#eee;padding-left:10px}
-.player-controls{text-align:center;padding:6px 8px;display:table;width:100%;background:rgba(0,0,0,0.6)}
+.player-controls{text-align:center;padding:6px 8px;display:table;width:100%;background:rgba(0,0,0,0.9)}
 .player-controls .c{display:table-cell;vertical-align:middle;padding:0 4px}
-.player-controls select{padding:4px 8px;background:#222;color:#eee;border:1px solid #444;border-radius:4px;font-size:13px}
+.player-controls select{padding:4px 8px;background:#111;color:#eee;border:1px solid #333;border-radius:4px;font-size:13px}
 .player-controls label{color:#aaa;font-size:12px}
 .player-sub{text-align:center;padding:6px}
-.player-sub select{padding:4px 8px;background:#222;color:#eee;border:1px solid #444;border-radius:4px;font-size:13px}
-.ext-link{display:inline-block;padding:10px 20px;background:#38bdf8;color:#111;border-radius:4px;font-weight:bold;text-decoration:none;margin-top:10px}
+.player-sub select{padding:4px 8px;background:#111;color:#eee;border:1px solid #333;border-radius:4px;font-size:13px}
+.ext-link{display:inline-block;padding:10px 20px;background:#38bdf8;color:#000;border-radius:4px;font-weight:bold;text-decoration:none;margin-top:10px}
 .loading{text-align:center;padding:30px;color:#666}
 .error{text-align:center;padding:30px;color:#f44}
 </style> 
@@ -110,6 +111,7 @@ var CURRENT_EPISODES = [];
 var CURRENT_EPISODES_MAP = {};
 var CURRENT_STREAMS = [];
 var CURRENT_SUBTITLES = [];
+var CURRENT_REFERER = "";
 var CURRENT_ANIME_ID = 0;
 var CURRENT_ANIME_TITLE = "";
 var CURRENT_ANIME_ROMAJI = "";
@@ -146,6 +148,7 @@ function showPage(name) {
   var pages = ["home","search","detail","player"];
   for (var i = 0; i < pages.length; i++) document.getElementById(pages[i] + "-page").className = "page";
   document.getElementById(name + "-page").className = "page active";
+  document.body.style.overflow = (name === "player") ? "hidden" : "";
 }
 
 function doHomeSearch() {
@@ -185,8 +188,7 @@ function loadHome() {
   c.innerHTML = '<div class="loading">Loading...</div>';
   var secs = [
     { t: "Trending", e: "/trending?per_page=20" },
-    { t: "Popular", e: "/popular?per_page=20" },
-    { t: "Recent", e: "/recent?per_page=20" }
+    { t: "Popular", e: "/popular?per_page=20" }
   ];
   var loaded = 0;
   var html = "";
@@ -383,7 +385,7 @@ function loadStream(stream) {
   if (window._hls) { window._hls.destroy(); window._hls = null; }
 
   var url = stream.url;
-  var referer = stream.referer || "";
+  var referer = stream.referer || CURRENT_REFERER || "";
   var proxyUrl = PROXY_BASE + "/proxy?url=" + encodeURIComponent(url) + "&referer=" + encodeURIComponent(referer);
   v.crossOrigin = "anonymous";
 
@@ -522,6 +524,7 @@ function playHianimeEpisode(num) {
 
     CURRENT_STREAMS = data.sources;
     CURRENT_SUBTITLES = data.tracks || [];
+    CURRENT_REFERER = data.referer || "https://www.animesaturn.cx";
 
     var controlsHtml = '<div class="c" style="width:auto"><label>Quality:</label></div><div class="c" style="width:auto">';
     controlsHtml += '<select id="quality-select" onchange="changeQuality()">';
