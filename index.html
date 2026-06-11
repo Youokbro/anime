@@ -728,7 +728,7 @@ function playHianimeEpisode(num) {
       }
       controlsHtml += '</select></div>';
     }
-    // Show active server
+    controlsEl.innerHTML = controlsHtml;    // Show active server
     controlsHtml += '<div class="c" style="width:auto"><label>Server:</label></div><div class="c" style="width:auto">';
     controlsHtml += '<select id="server-select" style="opacity:0.7"><option selected>' + CURRENT_PROVIDER + '</option></select></div>';
     controlsEl.innerHTML = controlsHtml;    controlsEl.innerHTML = controlsHtml;
