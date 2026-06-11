@@ -163,9 +163,9 @@ function checkAnilistToken() {
       ANILIST_TOKEN = m[1];
       localStorage.setItem("anilist_token", ANILIST_TOKEN);
       history.replaceState(null, "", window.location.pathname + window.location.search);
-      anilistRefresh();
     }
   }
+  anilistRefresh();
 }
 
 function anilistLogin() {
