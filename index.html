@@ -375,6 +375,11 @@ function playEpisode(num) {
       controlsHtml += '</select></div>';
     }
     controlsEl.innerHTML = controlsHtml;
+    if (v.canPlayType("application/vnd.apple.mpegurl") === "") {
+      for (var i = 0; i < playable.length; i++) {
+        if (playable[i].type === "mp4") { loadStream(playable[i]); return; }
+      }
+    }
     loadStream(playable[0]);
   });
 }
@@ -395,6 +400,14 @@ function loadStream(stream) {
     v.src = proxyUrl; v.load();
   } else if (window.Hls && window.Hls.isSupported()) {
     var hls = new window.Hls(); window._hls = hls;
+    hls.on(Hls.Events.ERROR, function(ev, data) {
+      if (data.fatal) {
+        hls.destroy(); window._hls = null;
+        for (var j = 0; j < CURRENT_STREAMS.length; j++) {
+          if (CURRENT_STREAMS[j].type === "mp4") { loadStream(CURRENT_STREAMS[j]); return; }
+        }
+      }
+    });
     hls.loadSource(proxyUrl); hls.attachMedia(v);
   } else {
     document.getElementById("player-controls").innerHTML = '<span class="error">HLS not supported in this browser</span>';
@@ -531,6 +544,14 @@ function playHianimeEpisode(num) {
         v.src = proxyUrl; v.load();
       } else if (window.Hls && window.Hls.isSupported()) {
         var hls = new window.Hls(); window._hls = hls;
+        hls.on(Hls.Events.ERROR, function(ev, data) {
+          if (data.fatal) {
+            hls.destroy(); window._hls = null;
+            for (var j = 0; j < CURRENT_STREAMS.length; j++) {
+              if (CURRENT_STREAMS[j].type === "mp4" || (!CURRENT_STREAMS[j].isM3U8 && CURRENT_STREAMS[j].url.indexOf(".m3u8") === -1)) { loadStream(CURRENT_STREAMS[j]); return; }
+            }
+          }
+        });
         hls.loadSource(proxyUrl); hls.attachMedia(v);
       } else {
         controlsEl.innerHTML = '<span class="error">HLS not supported in this browser</span>';
