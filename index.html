@@ -377,7 +377,7 @@ function playEpisode(num) {
     controlsEl.innerHTML = controlsHtml;
     if (v.canPlayType("application/vnd.apple.mpegurl") === "") {
       for (var i = 0; i < playable.length; i++) {
-        if (playable[i].type === "mp4") { loadStream(playable[i]); return; }
+        if (playable[i].type === "mp4" && playable[i].url.indexOf("Authorization=") < 0) { loadStream(playable[i]); return; }
       }
     }
     loadStream(playable[0]);
@@ -395,6 +395,7 @@ function loadStream(stream) {
   v.crossOrigin = "anonymous";
 
   if (url.indexOf(".mp4") > -1 || stream.type === "mp4") {
+    v.onerror = function() { v.onerror = null; v.src = ""; tryNextStream(stream); };
     v.src = proxyUrl; v.load();
   } else if (v.canPlayType("application/vnd.apple.mpegurl")) {
     v.src = proxyUrl; v.load();
@@ -403,14 +404,24 @@ function loadStream(stream) {
     hls.on(Hls.Events.ERROR, function(ev, data) {
       if (data.fatal) {
         hls.destroy(); window._hls = null;
-        for (var j = 0; j < CURRENT_STREAMS.length; j++) {
-          if (CURRENT_STREAMS[j].type === "mp4") { loadStream(CURRENT_STREAMS[j]); return; }
-        }
+        tryNextStream(stream);
       }
     });
     hls.loadSource(proxyUrl); hls.attachMedia(v);
   } else {
     document.getElementById("player-controls").innerHTML = '<span class="error">HLS not supported in this browser</span>';
+  }
+}
+
+function tryNextStream(current) {
+  var idx = -1;
+  for (var i = 0; i < CURRENT_STREAMS.length; i++) {
+    if (CURRENT_STREAMS[i] === current) { idx = i; break; }
+  }
+  if (idx >= 0 && idx + 1 < CURRENT_STREAMS.length) {
+    loadStream(CURRENT_STREAMS[idx + 1]);
+  } else {
+    document.getElementById("player-controls").innerHTML = "<span class=\"error\">All streams failed</span>";
   }
 }
 
@@ -541,15 +552,14 @@ function playHianimeEpisode(num) {
     v.crossOrigin = "anonymous";
     if (src.isM3U8 || url.indexOf(".m3u8") > -1) {
       if (v.canPlayType("application/vnd.apple.mpegurl")) {
-        v.src = proxyUrl; v.load();
+        v.onerror = function() { v.onerror = null; v.src = ""; tryNextStream(src); };
+      v.src = proxyUrl; v.load();
       } else if (window.Hls && window.Hls.isSupported()) {
         var hls = new window.Hls(); window._hls = hls;
         hls.on(Hls.Events.ERROR, function(ev, data) {
           if (data.fatal) {
             hls.destroy(); window._hls = null;
-            for (var j = 0; j < CURRENT_STREAMS.length; j++) {
-              if (CURRENT_STREAMS[j].type === "mp4" || (!CURRENT_STREAMS[j].isM3U8 && CURRENT_STREAMS[j].url.indexOf(".m3u8") === -1)) { loadStream(CURRENT_STREAMS[j]); return; }
-            }
+            tryNextStream(src);
           }
         });
         hls.loadSource(proxyUrl); hls.attachMedia(v);
