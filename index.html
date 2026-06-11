@@ -435,11 +435,29 @@ function openDetail(id) {
         tbl += '<td>' + num + '</td><td>' + ttl + '</td><td>' + aired + '</td></tr>';
       }
       el.innerHTML = tbl + '</table>';
+      // background search Consumet for AnimeSaturn server option
+      (function() {
+        var sq = CURRENT_ANIME_TITLE;
+        (function tryCS(q) {
+          consumetGet("/search?q=" + encodeURIComponent(q), function(e, d) {
+            if (d && d.results && d.results.length) {
+              HIANIME_ID = d.results[0].id;
+              CURRENT_PROVIDER = d._provider || "AnimeSaturn";
+              consumetGet("/info?id=" + HIANIME_ID + "&provider=" + CURRENT_PROVIDER, function(e2, ci) {
+                if (ci && ci.episodes) CURRENT_HIANIME_EPS = ci.episodes;
+              });
+            } else if (CURRENT_ANIME_ROMAJI && q !== CURRENT_ANIME_ROMAJI) {
+              tryCS(CURRENT_ANIME_ROMAJI);
+            }
+          });
+        })(sq);
+      })();
     });
   });
 }
 
 function playEpisode(num) {
+  HI_FAILED = false;
   var ep = CURRENT_EPISODES_MAP[num];
   if (!ep) return;
   var eid = ep.id || "";
@@ -454,6 +472,10 @@ function playEpisode(num) {
   apiGet("/" + eid, function(err, data) {
     var controlsEl = document.getElementById("player-controls");
     if (err) {
+      if (HI_FAILED) {
+        controlsEl.innerHTML = '<div class="error">Stream unavailable from all sources</div><br><a class="ext-link" href="https://miruro.tv/search?q=' + encodeURIComponent(CURRENT_ANIME_TITLE) + '" target="_blank">Open on Miruro.to</a>';
+        return;
+      }
       // Try HiAnime fallback
       if (CURRENT_HIANIME_EPS.length) { playHianimeEpisode(num); return; }
       // Otherwise search once
@@ -529,13 +551,20 @@ function playEpisode(num) {
     }
     var curProv = ep._provider || "unknown";
     var allProvs = CURRENT_EP_PROVIDERS[num] || [];
-    if (allProvs.length > 0) {
+    var hasAnimeSaturn = false;
+    for (var hi = 0; hi < CURRENT_HIANIME_EPS.length; hi++) {
+      if (CURRENT_HIANIME_EPS[hi].number === num) { hasAnimeSaturn = true; break; }
+    }
+    if (allProvs.length > 0 || hasAnimeSaturn) {
       controlsHtml += '<div class="c" style="width:auto"><label>Server:</label></div><div class="c" style="width:auto">';
       controlsHtml += '<select id="server-select" onchange="switchServer(' + num + ')">';
       for (var sp = 0; sp < allProvs.length; sp++) {
         var provName = allProvs[sp].provider;
         var sel = provName === curProv ? " selected" : "";
         controlsHtml += '<option value="' + sp + '"' + sel + '>' + provName + '</option>';
+      }
+      if (hasAnimeSaturn) {
+        controlsHtml += '<option value="hi">AnimeSaturn</option>';
       }
       controlsHtml += '</select></div>';
     }
@@ -613,7 +642,9 @@ function changeSub(val) {
 function switchServer(num) {
   var sel = document.getElementById("server-select");
   if (!sel) return;
-  var idx = parseInt(sel.value, 10);
+  var val = sel.value;
+  if (val === "hi") { playHianimeEpisode(num); return; }
+  var idx = parseInt(val, 10);
   var provs = CURRENT_EP_PROVIDERS[num] || [];
   if (idx >= 0 && idx < provs.length) {
     var p = provs[idx];
@@ -633,6 +664,8 @@ function closePlayer() {
   if (window._hls) { window._hls.destroy(); window._hls = null; }
   showPage("detail");
 }
+
+var HI_FAILED = false; // prevents re-entering Consumet after failure
 
 // HiAnime fallback
 var HIANIME_ID = "";
@@ -679,6 +712,7 @@ function loadHianimeEpisodes() {
 }
 
 function playHianimeEpisode(num) {
+  HI_FAILED = false;
   showPage("player");
   var v = document.getElementById("player-video");
   v.pause(); v.src = ""; v.innerHTML = "";
@@ -693,6 +727,7 @@ function playHianimeEpisode(num) {
   }
   if (!ep || !ep.id) {
     document.getElementById("player-controls").innerHTML = '<div class="error">Episode not found on HiAnime</div>';
+    HI_FAILED = true;
     return;
   }
 
@@ -701,6 +736,7 @@ function playHianimeEpisode(num) {
     if (err || !data.sources || !data.sources.length) {
       var miruroUrl = "https://miruro.tv/search?q=" + encodeURIComponent(CURRENT_ANIME_TITLE);
       controlsEl.innerHTML = 'HiAnime failed. <br><br><a class="ext-link" href="' + miruroUrl + '" target="_blank">Open on Miruro.to</a>';
+      HI_FAILED = true;
       return;
     }
     var src = data.sources[0];
