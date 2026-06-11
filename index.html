@@ -529,7 +529,7 @@ function playEpisode(num) {
     }
     var curProv = ep._provider || "unknown";
     var allProvs = CURRENT_EP_PROVIDERS[num] || [];
-    if (allProvs.length > 1) {
+    if (allProvs.length > 0) {
       controlsHtml += '<div class="c" style="width:auto"><label>Server:</label></div><div class="c" style="width:auto">';
       controlsHtml += '<select id="server-select" onchange="switchServer(' + num + ')">';
       for (var sp = 0; sp < allProvs.length; sp++) {
@@ -539,6 +539,9 @@ function playEpisode(num) {
       }
       controlsHtml += '</select></div>';
     }
+    // Show active server
+    controlsHtml += '<div class="c" style="width:auto"><label>Server:</label></div><div class="c" style="width:auto">';
+    controlsHtml += '<select id="server-select" style="opacity:0.7"><option selected>' + CURRENT_PROVIDER + '</option></select></div>';
     controlsEl.innerHTML = controlsHtml;
     if (v.canPlayType("application/vnd.apple.mpegurl") === "") {
       for (var i = 0; i < playable.length; i++) {
