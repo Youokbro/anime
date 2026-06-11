@@ -116,6 +116,7 @@ var CONSUMET_API = "https://anime-api-nu-eight.vercel.app";
 var CURRENT_EPISODES = [];
 var CURRENT_EPISODES_MAP = {};
 var CURRENT_STREAMS = [];
+var CURRENT_EP_PROVIDERS = {};
 var CURRENT_SUBTITLES = [];
 var CURRENT_REFERER = "";
 var CURRENT_ANIME_ID = 0;
@@ -400,6 +401,23 @@ function openDetail(id) {
           }
         }
       }
+      var epProvs = {};
+      for (var o = PROVIDERS.length - 1; o >= 0; o--) {
+        var p = PROVIDERS[o];
+        if (!provs[p] || !provs[p].episodes) continue;
+        var cats = provs[p].episodes;
+        for (var cat in cats) {
+          var list = cats[cat];
+          if (!list || !list.length) continue;
+          for (var k = 0; k < list.length; k++) {
+            var ep = list[k];
+            var num = ep.number || (k + 1);
+            if (!epProvs[num]) epProvs[num] = [];
+            epProvs[num].push({ provider: p, id: ep.id || '', category: cat, number: num });
+          }
+        }
+      }
+      CURRENT_EP_PROVIDERS = epProvs;
       for (var n in byNum) flat.push(byNum[n]);
       flat.sort(function(a, b) { return a._epNum - b._epNum; });
 
@@ -509,6 +527,18 @@ function playEpisode(num) {
       }
       controlsHtml += '</select></div>';
     }
+    var curProv = ep._provider || "unknown";
+    var allProvs = CURRENT_EP_PROVIDERS[num] || [];
+    if (allProvs.length > 1) {
+      controlsHtml += '<div class="c" style="width:auto"><label>Server:</label></div><div class="c" style="width:auto">';
+      controlsHtml += '<select id="server-select" onchange="switchServer(' + num + ')">';
+      for (var sp = 0; sp < allProvs.length; sp++) {
+        var provName = allProvs[sp].provider;
+        var sel = provName === curProv ? " selected" : "";
+        controlsHtml += '<option value="' + sp + '"' + sel + '>' + provName + '</option>';
+      }
+      controlsHtml += '</select></div>';
+    }
     controlsEl.innerHTML = controlsHtml;
     if (v.canPlayType("application/vnd.apple.mpegurl") === "") {
       for (var i = 0; i < playable.length; i++) {
@@ -578,6 +608,23 @@ function changeSub(val) {
   var tr = document.createElement("track");
   tr.kind = "subtitles"; tr.label = s.label || "Subs"; tr.srclang = "en"; tr.src = s.file; tr.default = true;
   v.appendChild(tr);
+}
+
+function switchServer(num) {
+  var sel = document.getElementById("server-select");
+  if (!sel) return;
+  var idx = parseInt(sel.value, 10);
+  var provs = CURRENT_EP_PROVIDERS[num] || [];
+  if (idx >= 0 && idx < provs.length) {
+    var p = provs[idx];
+    var ep = CURRENT_EPISODES_MAP[num];
+    if (ep) {
+      ep._provider = p.provider;
+      ep._category = p.category;
+      ep.id = p.id;
+      playEpisode(num);
+    }
+  }
 }
 
 function closePlayer() {
