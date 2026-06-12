@@ -322,22 +322,63 @@ function buildSection(title, data) {
 function loadHome() {
   var c = document.getElementById("home-sections");
   c.innerHTML = '<div class="loading">Loading...</div>';
-  var secs = [
-    { t: "Trending", e: "/trending?per_page=20" },
-    { t: "Popular", e: "/popular?per_page=20" }
+  _homeResults = [];
+  var queries = [
+    { t: "Trending", q: "{ Page(page: 1, perPage: 20) { media(sort: TRENDING_DESC, type: ANIME) { id title { romaji english } coverImage { large } } } }" },
+    { t: "Popular", q: "{ Page(page: 1, perPage: 20) { media(sort: POPULARITY_DESC, type: ANIME) { id title { romaji english } coverImage { large } } } }" }
   ];
   var loaded = 0;
   var html = "";
-  for (var i = 0; i < secs.length; i++) {
+  for (var i = 0; i < queries.length; i++) {
     (function(idx) {
-      apiGet(secs[idx].e, function(err, data) {
+      anilistGraphQL(queries[idx].q, {}, function(err, data) {
         loaded++;
-        if (!err) html += buildSection(secs[idx].t, data);
-        if (loaded === secs.length) c.innerHTML = html || '<div class="error">Failed to load</div>';
+        if (!err && data && data.Page && data.Page.media) {
+          var items = data.Page.media;
+          var h = '<div class="section-title">' + queries[idx].t + '</div><div class="card-table"><table><tr>';
+          for (var j = 0; j < items.length; j++) {
+            var m = items[j];
+            var img = m.coverImage ? (m.coverImage.large || "") : "";
+            var t = getTitle(m);
+            h += '<td><div class="poster-card" onclick="openHomeResult(' + _homeResults.length + ')">';
+            if (img) h += '<img src="' + img + '" alt="" onerror="this.style.display='\''none'\''">';
+            else h += '<div style="height:140px;background:#111"></div>';
+            h += '<div class="label">' + t + '</div></div></td>';
+            if ((j + 1) % 4 === 0 && j < items.length - 1) h += '</tr><tr>';
+            _homeResults.push(m);
+          }
+          html += h + '</tr></table></div>';
+        }
+        if (loaded === queries.length) c.innerHTML = html || '<div class="error">Failed to load</div>';
       });
     })(i);
   }
 }
+function openHomeResult(idx) {
+  var media = _homeResults[idx];
+  if (!media) return;
+  var title = getTitle(media);
+  var c = document.getElementById("detail-content");
+  c.innerHTML = '<div class="loading">Looking for streams...</div>';
+  showPage("detail");
+  _lastPage = "detail";
+  apiGet("/search?query=" + encodeURIComponent(title) + "&per_page=5", function(err, data) {
+    if (!err && data.results && data.results.length) {
+      openDetail(data.results[0].id);
+    } else if (media.title && media.title.romaji && media.title.romaji !== title) {
+      apiGet("/search?query=" + encodeURIComponent(media.title.romaji) + "&per_page=5", function(err2, data2) {
+        if (!err2 && data2.results && data2.results.length) {
+          openDetail(data2.results[0].id);
+        } else {
+          showAnilistDetail(media);
+        }
+      });
+    } else {
+      showAnilistDetail(media);
+    }
+  });
+}
+
 
 function doSearch() {
   var q = document.getElementById("search-input").value.trim();
@@ -737,6 +778,8 @@ function closePlayer() {
 
 var HI_FAILED = false; // prevents re-entering Consumet after failure
 var _lastAnilistSearch = [];
+
+var _homeResults = [];
 
 // HiAnime fallback
 var HIANIME_ID = "";
