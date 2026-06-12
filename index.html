@@ -197,7 +197,8 @@ function checkAnilistToken() {
 }
 
 function anilistLogin() {
-  window.location.href = "https://anilist.co/api/v2/oauth/authorize?client_id=" + ANILIST_CLIENT_ID + "&response_type=token";
+  var redirect = encodeURIComponent(window.location.origin + window.location.pathname.replace(/\/$/, ""));
+  window.location.href = "https://anilist.co/api/v2/oauth/authorize?client_id=" + ANILIST_CLIENT_ID + "&redirect_uri=" + redirect + "&response_type=token";
 }
 
 function anilistLogout() {
@@ -215,7 +216,7 @@ function anilistGraphQL(query, vars, cb) {
   x.onreadystatechange = function() {
     if (x.readyState === 4) {
       if (x.status === 200) { try { cb(null, JSON.parse(x.responseText).data); } catch(e) { cb("Parse error"); } }
-      else { cb("Error " + x.status); }
+      else { cb(x.status); }
     }
   };
   x.send(JSON.stringify({ query: query, variables: vars || {} }));
@@ -228,8 +229,13 @@ function anilistRefresh() {
   nav.innerHTML = '<span class="loading" style="font-size:11px;color:#888">Loading...</span>';
   anilistGraphQL("query { Viewer { id name avatar { large } } }", {}, function(err, data) {
     if (err || !data || !data.Viewer) {
-      ANILIST_TOKEN = ""; localStorage.removeItem("anilist_token");
-      nav.innerHTML = '<a class="login-btn" href="javascript:anilistLogin()">Login</a>';
+      if (err === 401) {
+        ANILIST_TOKEN = ""; localStorage.removeItem("anilist_token");
+        nav.innerHTML = '<a class="login-btn" href="javascript:anilistLogin()">Login</a>';
+      } else {
+        nav.innerHTML = '<span style="font-size:11px;color:#888">Retry...</span>';
+        setTimeout(function() { anilistRefresh(); }, 3000);
+      }
       return;
     }
     ANILIST_USER = data.Viewer;
