@@ -343,13 +343,27 @@ function doSearch() {
   var q = document.getElementById("search-input").value.trim();
   if (!q.length) return;
   var c = document.getElementById("search-results");
-  c.innerHTML = '<div class="loading">Searching...</div>';
+  c.innerHTML = '<div class="loading">Searching AniList...</div>';
   _lastPage = "search";
   showPage("search");
-  apiGet("/search?query=" + encodeURIComponent(q) + "&per_page=20", function(err, data) {
-    if (err) { c.innerHTML = '<div class="error">' + err + '</div>'; return; }
-    var r = data.results || [];
-    c.innerHTML = r.length ? buildSection("Results", data) : '<div class="error">No results</div>';
+  anilistGraphQL('query ($q: String) { Page(page: 1, perPage: 20) { media(search: $q, type: ANIME) { id title { romaji english } coverImage { large } description } } }', { q: q }, function(err, data) {
+    if (err || !data.Page || !data.Page.media || !data.Page.media.length) {
+      c.innerHTML = '<div class="error">No results found</div>';
+      return;
+    }
+    _lastAnilistSearch = data.Page.media;
+    var html = '<div class="section-title">Results</div><div class="card-table"><table><tr>';
+    for (var i = 0; i < data.Page.media.length; i++) {
+      var m = data.Page.media[i];
+      var img = m.coverImage ? (m.coverImage.large || "") : "";
+      var t = getTitle(m);
+      html += '<td><div class="poster-card" onclick="openAnilistResult(' + i + ')">';
+      if (img) html += '<img src="' + img + '" alt="" onerror="this.style.display='none'">';
+      else html += '<div style="height:140px;background:#111"></div>';
+      html += '<div class="label">' + t + '</div></div></td>';
+      if ((i + 1) % 4 === 0 && i < data.Page.media.length - 1) html += '</tr><tr>';
+    }
+    c.innerHTML = html + '</tr></table></div>';
   });
 }
 
@@ -453,6 +467,62 @@ function openDetail(id) {
         })(sq);
       })();
     });
+  });
+}
+
+function openAnilistResult(idx) {
+  var media = _lastAnilistSearch[idx];
+  if (!media) return;
+  var title = getTitle(media);
+  var c = document.getElementById("detail-content");
+  c.innerHTML = '<div class="loading">Looking for streams...</div>';
+  showPage("detail");
+  _lastPage = "detail";
+  apiGet("/search?query=" + encodeURIComponent(title) + "&per_page=5", function(err, data) {
+    if (!err && data.results && data.results.length) {
+      openDetail(data.results[0].id);
+    } else if (media.title && media.title.romaji && media.title.romaji !== title) {
+      apiGet("/search?query=" + encodeURIComponent(media.title.romaji) + "&per_page=5", function(err2, data2) {
+        if (!err2 && data2.results && data2.results.length) {
+          openDetail(data2.results[0].id);
+        } else {
+          showAnilistDetail(media);
+        }
+      });
+    } else {
+      showAnilistDetail(media);
+    }
+  });
+}
+
+function showAnilistDetail(media) {
+  CURRENT_ANIME_ID = media.id;
+  CURRENT_ANIME_TITLE = getTitle(media);
+  CURRENT_ANIME_ROMAJI = (media.title && media.title.romaji) || CURRENT_ANIME_TITLE;
+  CURRENT_HIANIME_EPS = [];
+  HIANIME_ID = "";
+  _lastPage = "detail";
+  showPage("detail");
+  var c = document.getElementById("detail-content");
+  var img = getImg(media);
+  var title = getTitle(media);
+  var desc = (media.description || "").replace(/<[^>]*>/g, "");
+  var html = '';
+  if (img) html += '<div class="banner"><img src="' + img + '" alt=""><div class="banner-overlay"><h1>' + title + '</h1></div></div>';
+  else html += '<div class="detail-body"><h1 style="padding:12px;font-size:20px;color:#38bdf8">' + title + '</h1>';
+  html += '<div class="detail-body">';
+  if (desc) html += '<div class="detail-desc">' + desc + '</div>';
+  html += '<div class="section-title">Episodes</div><div id="ep-list"><div class="loading">Loading episodes...</div></div><div id="anilist-status"></div></div>';
+  c.innerHTML = html;
+  loadAnilistStatus(media.id);
+  doConsumetSearch(CURRENT_ANIME_TITLE, function() {
+    if (CURRENT_ANIME_ROMAJI && CURRENT_ANIME_ROMAJI !== CURRENT_ANIME_TITLE) {
+      doConsumetSearch(CURRENT_ANIME_ROMAJI, function() {
+        document.getElementById("ep-list").innerHTML = '<div class="error">No episodes from any source</div>';
+      });
+    } else {
+      document.getElementById("ep-list").innerHTML = '<div class="error">No episodes from any source</div>';
+    }
   });
 }
 
@@ -666,6 +736,7 @@ function closePlayer() {
 }
 
 var HI_FAILED = false; // prevents re-entering Consumet after failure
+var _lastAnilistSearch = [];
 
 // HiAnime fallback
 var HIANIME_ID = "";
