@@ -341,7 +341,7 @@ function loadHome() {
             var img = m.coverImage ? (m.coverImage.large || "") : "";
             var t = getTitle(m);
             h += '<td><div class="poster-card" onclick="openHomeResult(' + _homeResults.length + ')">';
-            if (img) h += '<img src="' + img + '" alt="" onerror="this.style.display='\''none'\''">';
+            if (img) h += '<img src="' + img + '" alt="" onerror="this.style.display=\'none\'">';
             else h += '<div style="height:140px;background:#111"></div>';
             h += '<div class="label">' + t + '</div></div></td>';
             if ((j + 1) % 4 === 0 && j < items.length - 1) h += '</tr><tr>';
@@ -399,7 +399,7 @@ function doSearch() {
       var img = m.coverImage ? (m.coverImage.large || "") : "";
       var t = getTitle(m);
       html += '<td><div class="poster-card" onclick="openAnilistResult(' + i + ')">';
-      if (img) html += '<img src="' + img + '" alt="" onerror="this.style.display='none'">';
+      if (img) html += '<img src="' + img + '" alt="" onerror="this.style.display=\'none\'">';
       else html += '<div style="height:140px;background:#111"></div>';
       html += '<div class="label">' + t + '</div></div></td>';
       if ((i + 1) % 4 === 0 && i < data.Page.media.length - 1) html += '</tr><tr>';
