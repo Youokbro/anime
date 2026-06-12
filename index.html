@@ -244,7 +244,7 @@ function loadAnilistSections() {
       for (var j = 0; j < entries.length && j < 20; j++) {
         var e = entries[j];
         var m = e.media || {};
-        var img = (m.coverImage && m.coverImage.large) || "";
+        var img = (m.coverImage && m.coverImage.extraLarge) || "";
         var t = m.title ? (m.title.english || m.title.romaji || "") : "";
         var ep = m.episodes || "?";
         var prog = e.progress || 0;
@@ -313,7 +313,7 @@ function getTitle(i) {
 
 function getImg(i) {
   var c = i.coverImage;
-  if (c && typeof c === "object") return c.large || c.extraLarge || c.medium || "";
+  if (c && typeof c === "object") return c.extraLarge || c.large || c.medium || "";
   return i.image || i.cover || i.poster || "";
 }
 
@@ -350,7 +350,7 @@ function loadHome() {
           var h = '<div class="section-title">' + queries[idx].t + '</div><div class="card-table"><table><tr>';
           for (var j = 0; j < items.length; j++) {
             var m = items[j];
-            var img = m.coverImage ? (m.coverImage.large || "") : "";
+            var img = m.coverImage ? (m.coverImage.extraLarge || "") : "";
             var t = getTitle(m);
             h += '<td><div class="poster-card" onclick="openHomeResult(' + _homeResults.length + ')">';
             if (img) h += '<img src="' + img + '" alt="" onerror="this.style.display=\'none\'">';
@@ -408,7 +408,7 @@ function doSearch() {
     var html = '<div class="section-title">Results</div><div class="card-table"><table><tr>';
     for (var i = 0; i < data.Page.media.length; i++) {
       var m = data.Page.media[i];
-      var img = m.coverImage ? (m.coverImage.large || "") : "";
+      var img = m.coverImage ? (m.coverImage.extraLarge || "") : "";
       var t = getTitle(m);
       html += '<td><div class="poster-card" onclick="openAnilistResult(' + i + ')">';
       if (img) html += '<img src="' + img + '" alt="" onerror="this.style.display=\'none\'">';
