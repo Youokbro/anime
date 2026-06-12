@@ -40,12 +40,19 @@ input,button{font-size:16px}
 .detail-body{padding:12px}
 .detail-desc{color:#aaa;font-size:13px;line-height:1.5;margin-bottom:12px}
 
-@media (orientation:landscape){
+@media (orientation:landscape){.detail-left .banner img{max-height:220px;object-fit:cover}}
+
 .detail-split{display:table;width:100%}
 .detail-left{display:table-cell;width:35%;vertical-align:top;padding:12px}
 .detail-right{display:table-cell;width:65%;vertical-align:top;padding:12px 12px 12px 0}
 .detail-left .banner{margin-bottom:10px}
 .detail-left .detail-desc{margin-bottom:0}
+.detail-left .banner img{max-height:220px;object-fit:cover}
+
+@media (max-width:599px){
+.detail-split,.detail-left,.detail-right{display:block;width:auto}
+.detail-left{padding:12px 12px 0}
+.detail-right{padding:0 12px 12px}
 }
 
 .episode-table{width:100%;border-collapse:collapse}
