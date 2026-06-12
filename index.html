@@ -7,87 +7,72 @@
 <style>
 *{margin:0;padding:0;box-sizing:border-box}
 html,body{height:100%}
-body{background:#141414;color:#e5e5e5;font-family:-apple-system,Helvetica,Arial,sans-serif;font-size:14px;overflow-x:hidden}
-a{color:#38bdf8}
+body{background:#000;color:#eee;font-family:-apple-system,Helvetica,Arial,sans-serif;font-size:14px;overflow-x:hidden}
 input,button{font-size:16px}
 .page{display:none}
 .page.active{display:block}
 
-/* Nav */
-.nav{background:rgba(20,20,20,0.98);padding:10px 14px;display:table;width:100%;border-bottom:1px solid #2a2a2a}
+.nav{background:#050505;padding:10px 14px;display:table;width:100%;border-bottom:1px solid #222}
 .nav-cell{display:table-cell;vertical-align:middle}
-.nav-title{font-size:22px;font-weight:bold;background:linear-gradient(135deg,#38bdf8,#a78bfa);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;text-shadow:0 0 30px rgba(56,189,248,0.3)}
-.nav-back{padding:6px 12px;background:rgba(56,189,248,0.08);color:#38bdf8;border:1px solid rgba(56,189,248,0.2);border-radius:6px;cursor:pointer;font-size:13px}
+.nav-title{font-size:20px;font-weight:bold;color:#38bdf8}
+.nav-back{padding:5px 10px;background:none;color:#38bdf8;border:1px solid #38bdf8;border-radius:4px;cursor:pointer;font-size:14px}
 
-/* Search */
-.search-wrap{padding:14px 14px 10px;background:#141414}
+.search-wrap{padding:12px 14px;background:#050505}
 .search-row{display:table;width:100%}
 .search-row .c{display:table-cell;vertical-align:middle}
-.search-row input{width:100%;padding:12px 14px;border:1px solid #333;border-radius:8px;background:#1a1a1a;color:#eee;outline:none;transition:border 0.2s}
-.search-row input::placeholder{color:#555}
-.search-row input:focus{border-color:#38bdf8;background:#222}
-.search-row button{padding:12px 20px;margin-left:8px;border:none;border-radius:8px;background:linear-gradient(135deg,#38bdf8,#a78bfa);color:#000;font-weight:bold;cursor:pointer;box-shadow:0 2px 12px rgba(56,189,248,0.3)}
+.search-row input{width:100%;padding:10px 12px;border:1px solid #333;border-radius:4px;background:#111;color:#eee;outline:none}
+.search-row input:focus{border-color:#38bdf8}
+.search-row button{padding:10px 16px;margin-left:6px;border:none;border-radius:4px;background:#38bdf8;color:#000;font-weight:bold;cursor:pointer}
 
-/* Sections */
-.section-title{padding:20px 14px 10px;font-size:17px;font-weight:bold;color:#fff;letter-spacing:0}
-.card-table{margin:0 6px 16px}
-.card-table table{width:100%;border-collapse:separate;border-spacing:6px}
-.card-table td{width:25%;padding:0;text-align:center;vertical-align:top}
-.poster-card{display:block;background:#1a1a1a;border-radius:6px;overflow:hidden;cursor:pointer;transition:transform 0.2s, box-shadow 0.2s;position:relative}
-.poster-card:active{transform:scale(0.95);box-shadow:0 0 20px rgba(56,189,248,0.3)}
-.poster-card img{width:100%;display:block;min-height:150px;background:#111}
-.poster-card .label{padding:10px 8px;font-size:12px;color:#ddd;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;line-height:1.3;font-weight:500}
+.section-title{padding:14px 12px 8px;font-size:16px;font-weight:bold;color:#38bdf8}
+.card-table{margin:0 6px 14px}
+.card-table table{width:100%;border-collapse:collapse}
+.card-table td{width:25%;padding:4px;text-align:center;vertical-align:top}
+.poster-card{display:block;background:#0a0a0a;border-radius:4px;overflow:hidden;cursor:pointer;border:1px solid #1a1a1a}
+.poster-card img{width:100%;display:block;min-height:140px;background:#111}
+.poster-card .label{padding:6px 4px;font-size:11px;color:#ccc;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 
-/* Detail */
 .banner{width:100%;position:relative}
-.banner img{width:100%;display:block;max-height:300px;object-fit:cover}
-.banner-overlay{background:linear-gradient(transparent 20%,rgba(20,20,20,0.97));padding:20px 14px 14px;position:absolute;bottom:0;left:0;right:0}
-.banner-overlay h1{font-size:24px;color:#fff;text-shadow:0 4px 12px rgba(0,0,0,0.6)}
-.detail-body{padding:14px}
-.detail-desc{color:#aaa;font-size:13px;line-height:1.7;margin-bottom:16px}
+.banner img{width:100%;display:block}
+.banner-overlay{background:linear-gradient(transparent,#000);padding:12px;position:absolute;bottom:0;left:0;right:0}
+.banner-overlay h1{font-size:20px;color:#fff}
+.detail-body{padding:12px}
+.detail-desc{color:#aaa;font-size:13px;line-height:1.5;margin-bottom:12px}
 
-/* Episodes */
-.episode-table{width:100%;border-collapse:collapse;margin:0 0 16px}
-.episode-table th{background:#1a1a1a;padding:10px 12px;text-align:left;font-size:11px;color:#666;border-bottom:1px solid #2a2a2a}
-.episode-table td{padding:12px;font-size:13px;border-bottom:1px solid #1a1a1a;cursor:pointer;transition:background 0.15s}
-.episode-table tr:nth-child(odd) td{background:rgba(255,255,255,0.02)}
-.episode-table tr:nth-child(even) td{background:rgba(255,255,255,0.01)}
-.episode-table tr td:first-child{width:40px;color:#38bdf8;text-align:center;font-weight:bold;font-size:15px}
-.episode-table tr:hover td{background:rgba(56,189,248,0.06)}
+.episode-table{width:100%;border-collapse:collapse}
+.episode-table th{background:#0a0a0a;padding:8px 10px;text-align:left;font-size:12px;color:#888;border-bottom:1px solid #1a1a1a}
+.episode-table td{padding:8px 10px;font-size:13px;border-bottom:1px solid #1a1a1a;cursor:pointer}
+.episode-table tr:nth-child(odd) td{background:#0a0a0a}
+.episode-table tr:nth-child(even) td{background:#050505}
+.episode-table tr td:first-child{width:40px;color:#38bdf8;text-align:center}
 
-/* Season tabs */
-.season-row{text-align:center;padding:10px 4px}
-.season-btn{display:inline-block;padding:6px 14px;margin:3px;border:1px solid #333;border-radius:6px;background:#1a1a1a;color:#999;cursor:pointer;font-size:12px;transition:all 0.2s}
-.season-btn:active{background:#222}
-.season-btn.active{background:linear-gradient(135deg,#38bdf8,#a78bfa);color:#000;border-color:transparent;font-weight:bold;box-shadow:0 2px 12px rgba(56,189,248,0.3)}
+.season-row{text-align:center;padding:8px 4px}
+.season-btn{display:inline-block;padding:5px 12px;margin:3px;border:1px solid #444;border-radius:4px;background:#0a0a0a;color:#aaa;cursor:pointer;font-size:11px}
+.season-btn.active{background:#38bdf8;color:#000;border-color:#38bdf8;font-weight:bold}
 
-/* Player */
 #player-page{position:fixed;top:0;left:0;right:0;bottom:0;z-index:100;background:#000}
-#player-page video{width:100%;max-height:70vh;display:block;margin:0 auto;background:#000}
-.player-top{background:rgba(0,0,0,0.9);padding:10px 14px;display:table;width:100%;border-bottom:1px solid #222}
+#player-page video{width:100%;display:block;margin:0 auto;background:#000}
+.player-top{background:#050505;padding:8px 12px;display:table;width:100%}
 .player-top .c{display:table-cell;vertical-align:middle}
-.player-info{font-size:13px;color:#ccc;padding-left:10px}
-.player-controls{text-align:center;padding:8px;display:table;width:100%;background:rgba(0,0,0,0.9)}
-.player-controls .c{display:table-cell;vertical-align:middle;padding:0 6px}
-.player-controls select{padding:6px 10px;background:#1a1a1a;color:#ddd;border:1px solid #333;border-radius:6px;font-size:12px}
-.player-controls label{color:#888;font-size:11px}
+.player-info{font-size:13px;color:#eee;padding-left:10px}
+.player-controls{text-align:center;padding:6px 8px;display:table;width:100%;background:#050505}
+.player-controls .c{display:table-cell;vertical-align:middle;padding:0 4px}
+.player-controls select{padding:4px 8px;background:#111;color:#eee;border:1px solid #333;border-radius:4px;font-size:13px}
+.player-controls label{color:#aaa;font-size:12px}
 .player-sub{text-align:center;padding:6px}
-.player-sub select{padding:6px 10px;background:#1a1a1a;color:#ddd;border:1px solid #333;border-radius:6px;font-size:12px}
-.ext-link{display:inline-block;padding:12px 24px;background:linear-gradient(135deg,#38bdf8,#a78bfa);color:#000;border-radius:8px;font-weight:bold;text-decoration:none;margin-top:12px;border:none;cursor:pointer;box-shadow:0 2px 12px rgba(56,189,248,0.3)}
+.player-sub select{padding:4px 8px;background:#111;color:#eee;border:1px solid #333;border-radius:4px;font-size:13px}
+.ext-link{display:inline-block;padding:10px 20px;background:#38bdf8;color:#000;border-radius:4px;font-weight:bold;text-decoration:none;margin-top:10px}
 
-/* States */
-@keyframes pulse{0%,100%{opacity:0.4}50%{opacity:1}}
-.loading{text-align:center;padding:40px;color:#555;font-size:13px;letter-spacing:1px;animation:pulse 1.5s ease-in-out infinite}
-.error{text-align:center;padding:40px;color:#ff4444;font-size:13px}
+@keyframes pulse{0%,100%{opacity:.4}50%{opacity:1}}
+.loading{text-align:center;padding:30px;color:#666;animation:pulse 1.5s ease-in-out infinite}
+.error{text-align:center;padding:30px;color:#f44;font-size:13px}
 
-/* Misc */
-.btn-status{display:inline-block;padding:6px 14px;margin:3px;border:1px solid #333;border-radius:6px;background:#1a1a1a;color:#bbb;cursor:pointer;font-size:11px;transition:all 0.2s}
-.btn-status:active{background:#222}
-.btn-status.active{background:linear-gradient(135deg,#38bdf8,#a78bfa);color:#000;border-color:transparent;font-weight:bold;box-shadow:0 2px 12px rgba(56,189,248,0.2)}
-.login-btn{display:inline-block;padding:6px 16px;background:linear-gradient(135deg,#38bdf8,#a78bfa);color:#000;border:none;border-radius:6px;cursor:pointer;font-weight:bold;font-size:12px;text-decoration:none;box-shadow:0 2px 12px rgba(56,189,248,0.2)}
-.avatar-img{width:28px;height:28px;border-radius:50%;vertical-align:middle;border:2px solid #38bdf8}
+.btn-status{display:inline-block;padding:4px 10px;margin:2px;border:1px solid #333;border-radius:4px;background:#0a0a0a;color:#eee;cursor:pointer;font-size:12px;text-decoration:none}
+.btn-status.active{background:#38bdf8;color:#000;border-color:#38bdf8;font-weight:bold}
+.login-btn{display:inline-block;padding:4px 12px;background:#38bdf8;color:#000;border:none;border-radius:4px;cursor:pointer;font-weight:bold;font-size:12px;text-decoration:none}
+.avatar-img{width:30px;height:30px;border-radius:50%;vertical-align:middle;border:2px solid #38bdf8}
 .nav-right{text-align:right}
-.logout-link{color:#666;font-size:11px;margin-left:8px;cursor:pointer;text-decoration:underline}
+.logout-link{color:#888;font-size:11px;margin-left:6px;cursor:pointer;text-decoration:underline}
 </style> 
 <script src="https://cdn.jsdelivr.net/npm/hls.js@latest"></script>
 </head>
@@ -376,7 +361,7 @@ function loadHome() {
           }
           html += h + '</tr></table></div>';
         }
-        if (loaded === queries.length) c.innerHTML = html || '<div class="error">Failed to load</div>';
+        if (loaded === queries.length) c.innerHTML = html || '<div class="error">AniList API error</div>';
       });
     })(i);
   }
@@ -416,7 +401,7 @@ function doSearch() {
   showPage("search");
   anilistGraphQL('query ($q: String) { Page(page: 1, perPage: 20) { media(search: $q, type: ANIME) { id title { romaji english } coverImage { large } description } } }', { q: q }, function(err, data) {
     if (err || !data.Page || !data.Page.media || !data.Page.media.length) {
-      c.innerHTML = '<div class="error">No results found</div>';
+      c.innerHTML = '<div class="error">No results. Try different spelling?</div>';
       return;
     }
     _lastAnilistSearch = data.Page.media;
@@ -587,10 +572,10 @@ function showAnilistDetail(media) {
   doConsumetSearch(CURRENT_ANIME_TITLE, function() {
     if (CURRENT_ANIME_ROMAJI && CURRENT_ANIME_ROMAJI !== CURRENT_ANIME_TITLE) {
       doConsumetSearch(CURRENT_ANIME_ROMAJI, function() {
-        document.getElementById("ep-list").innerHTML = '<div class="error">No episodes from any source</div>';
+        document.getElementById("ep-list").innerHTML = '<div class="error">No Consumet episodes found</div>';
       });
     } else {
-      document.getElementById("ep-list").innerHTML = '<div class="error">No episodes from any source</div>';
+      document.getElementById("ep-list").innerHTML = '<div class="error">No Consumet episodes found</div>';
     }
   });
 }
@@ -634,7 +619,7 @@ function switchSeason(idx) {
   CURRENT_HIANIME_EPS = [];
   HIANIME_ID = "";
   doConsumetSearch(s.title, function() {
-    document.getElementById("ep-list").innerHTML = '<div class="error">No episodes for ' + s.label + '</div>';
+    document.getElementById("ep-list").innerHTML = '<div class="error">No episodes for this season</div>';
   });
   // Update active tab highlight
   var btns = document.querySelectorAll(".season-btn");
@@ -903,7 +888,7 @@ function doConsumetSearch(query, fallback) {
   consumetGet("/search?q=" + encodeURIComponent(query), function(err, data) {
     if (err || !data.results || !data.results.length) {
       if (fallback) { fallback(); return; }
-      document.getElementById("ep-list").innerHTML = '<div class="error">No episodes from any source</div>';
+      document.getElementById("ep-list").innerHTML = '<div class="error">No Consumet episodes found</div>';
       return;
     }
     HIANIME_ID = data.results[0].id;
@@ -911,7 +896,7 @@ function doConsumetSearch(query, fallback) {
     consumetGet("/info?id=" + HIANIME_ID + "&provider=" + CURRENT_PROVIDER, function(err2, info) {
       var el = document.getElementById("ep-list");
       if (err2 || !info.episodes || !info.episodes.length) {
-        el.innerHTML = '<div class="error">No episodes from HiAnime</div>';
+        el.innerHTML = '<div class="error">No episodes (provider has none)</div>';
         return;
       }
       CURRENT_HIANIME_EPS = info.episodes;
@@ -936,7 +921,7 @@ function loadHianimeEpisodes() {
       el.innerHTML = '<div class="loading">Trying alternate title...</div>';
       doConsumetSearch(CURRENT_ANIME_ROMAJI, null);
     } else {
-      el.innerHTML = '<div class="error">No episodes from any source</div>';
+      el.innerHTML = '<div class="error">No Consumet episodes found</div>';
     }
   });
 }
@@ -965,7 +950,7 @@ function playHianimeEpisode(num) {
     var controlsEl = document.getElementById("player-controls");
     if (err || !data.sources || !data.sources.length) {
       var miruroUrl = "https://miruro.tv/search?q=" + encodeURIComponent(CURRENT_ANIME_TITLE);
-      controlsEl.innerHTML = 'No stream found. <br><br><a class="ext-link" href="' + miruroUrl + '" target="_blank">Open on Miruro.to</a>';
+      controlsEl.innerHTML = 'All sources failed. <br><br><a class="ext-link" href="' + miruroUrl + '" target="_blank">Try on Miruro.to</a>';
       HI_FAILED = true;
       return;
     }
