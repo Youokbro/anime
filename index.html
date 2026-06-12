@@ -28,6 +28,8 @@ input,button{font-size:16px}
 .card-table{margin:0 6px 14px}
 .card-table table{width:100%;border-collapse:collapse}
 .card-table td{width:25%;padding:4px;text-align:center;vertical-align:top}
+@media (min-width:1024px){.card-table td{width:16.66%}}
+@media (max-width:480px){.card-table td{width:33.33%}}
 .poster-card{display:block;background:#0a0a0a;border-radius:4px;overflow:hidden;cursor:pointer;border:1px solid #1a1a1a}
 .poster-card img{width:100%;display:block;min-height:140px;background:#111}
 .poster-card .label{padding:6px 4px;font-size:11px;color:#ccc;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
@@ -41,10 +43,22 @@ input,button{font-size:16px}
 .detail-right{display:table-cell;width:65%;vertical-align:top;padding:12px 12px 12px 0}
 .detail-left .detail-desc{margin-bottom:0}
 
-@media (max-width:599px){
+@media (max-width:767px){
 .detail-split,.detail-left,.detail-right{display:block;width:auto}
 .detail-left{padding:12px 12px 0}
 .detail-right{padding:0 12px 12px}
+}
+
+@media (min-width:768px) and (max-width:1023px){
+.detail-left{width:30%}
+.detail-right{width:70%}
+#player-page video{max-width:720px}
+}
+
+@media (min-width:1024px){
+.detail-cover{max-width:300px}
+.detail-left{width:30%}
+.detail-right{width:70%}
 }
 
 .episode-table{width:100%;border-collapse:collapse}
@@ -59,7 +73,7 @@ input,button{font-size:16px}
 .season-btn.active{background:#38bdf8;color:#000;border-color:#38bdf8;font-weight:bold}
 
 #player-page{position:fixed;top:0;left:0;right:0;bottom:0;z-index:100;background:#000}
-#player-page video{width:100%;display:block;margin:0 auto;background:#000}
+#player-page video{width:100%;max-width:960px;display:block;margin:0 auto;background:#000}
 .player-top{background:#050505;padding:8px 12px;display:table;width:100%}
 .player-top .c{display:table-cell;vertical-align:middle}
 .player-info{font-size:13px;color:#eee;padding-left:10px}
