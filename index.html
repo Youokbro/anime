@@ -236,7 +236,7 @@ function anilistRefresh() {
 function loadAnilistSections() {
   var sec = document.getElementById("anilist-sections");
   if (!sec) return;
-  anilistGraphQL("query ($u: Int) { MediaListCollection(userId: $u, type: ANIME) { lists { name entries { id progress media { id title { romaji english } coverImage { large } episodes } } } } }", { u: ANILIST_USER.id }, function(err, data) {
+  anilistGraphQL("query ($u: Int) { MediaListCollection(userId: $u, type: ANIME) { lists { name entries { id progress media { id title { romaji english } coverImage { extraLarge } episodes } } } } }", { u: ANILIST_USER.id }, function(err, data) {
     if (err || !data || !data.MediaListCollection) return;
     var lists = data.MediaListCollection.lists || [];
     var html = "";
@@ -253,7 +253,7 @@ function loadAnilistSections() {
       for (var j = 0; j < entries.length && j < 20; j++) {
         var e = entries[j];
         var m = e.media || {};
-        var img = (m.coverImage && m.coverImage.extraLarge) || "";
+        var img = (m.coverImage && (m.coverImage.extraLarge || m.coverImage.large)) || "";
         var t = m.title ? (m.title.english || m.title.romaji || "") : "";
         var ep = m.episodes || "?";
         var prog = e.progress || 0;
@@ -345,8 +345,8 @@ function loadHome() {
   c.innerHTML = '<div class="loading">Loading...</div>';
   _homeResults = [];
   var queries = [
-    { t: "Trending", q: "{ Page(page: 1, perPage: 20) { media(sort: TRENDING_DESC, type: ANIME) { id title { romaji english } coverImage { large } } } }" },
-    { t: "Popular", q: "{ Page(page: 1, perPage: 20) { media(sort: POPULARITY_DESC, type: ANIME) { id title { romaji english } coverImage { large } } } }" }
+    { t: "Trending", q: "{ Page(page: 1, perPage: 20) { media(sort: TRENDING_DESC, type: ANIME) { id title { romaji english } coverImage { extraLarge } } } }" },
+    { t: "Popular", q: "{ Page(page: 1, perPage: 20) { media(sort: POPULARITY_DESC, type: ANIME) { id title { romaji english } coverImage { extraLarge } } } }" }
   ];
   var loaded = 0;
   var html = "";
@@ -359,7 +359,7 @@ function loadHome() {
           var h = '<div class="section-title">' + queries[idx].t + '</div><div class="card-table"><table><tr>';
           for (var j = 0; j < items.length; j++) {
             var m = items[j];
-            var img = m.coverImage ? (m.coverImage.extraLarge || "") : "";
+            var img = m.coverImage ? (m.coverImage.extraLarge || m.coverImage.large || "") : "";
             var t = getTitle(m);
             h += '<td><div class="poster-card" onclick="openHomeResult(' + _homeResults.length + ')">';
             if (img) h += '<img src="' + img + '" alt="" onerror="this.style.display=\'none\'">';
@@ -408,7 +408,7 @@ function doSearch() {
   c.innerHTML = '<div class="loading">Searching AniList...</div>';
   _lastPage = "search";
   showPage("search");
-  anilistGraphQL('query ($q: String) { Page(page: 1, perPage: 20) { media(search: $q, type: ANIME) { id title { romaji english } coverImage { large } description } } }', { q: q }, function(err, data) {
+  anilistGraphQL('query ($q: String) { Page(page: 1, perPage: 20) { media(search: $q, type: ANIME) { id title { romaji english } coverImage { extraLarge } description } } }', { q: q }, function(err, data) {
     if (err || !data.Page || !data.Page.media || !data.Page.media.length) {
       c.innerHTML = '<div class="error">No results. Try different spelling?</div>';
       return;
@@ -417,7 +417,7 @@ function doSearch() {
     var html = '<div class="section-title">Results</div><div class="card-table"><table><tr>';
     for (var i = 0; i < data.Page.media.length; i++) {
       var m = data.Page.media[i];
-      var img = m.coverImage ? (m.coverImage.extraLarge || "") : "";
+      var img = m.coverImage ? (m.coverImage.extraLarge || m.coverImage.large || "") : "";
       var t = getTitle(m);
       html += '<td><div class="poster-card" onclick="openAnilistResult(' + i + ')">';
       if (img) html += '<img src="' + img + '" alt="" onerror="this.style.display=\'none\'">';
