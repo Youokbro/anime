@@ -567,6 +567,40 @@ function showAnilistDetail(media) {
   });
 }
 
+function streamHiVideo(src) {
+  var v = document.getElementById("player-video");
+  v.pause(); v.src = ""; v.innerHTML = "";
+  if (window._hls) { window._hls.destroy(); window._hls = null; }
+  var url = src.url;
+  var ref = src._provider === "AnimeUnity" ? "https://www.animeunity.to" : src._provider === "AnimeSaturn" ? "https://www.animesaturn.cx" : "https://www.animesaturn.cx";
+  var proxyUrl = PROXY_BASE + "/proxy?url=" + encodeURIComponent(url) + "&referer=" + encodeURIComponent(ref);
+  v.crossOrigin = "anonymous";
+  if (src.isM3U8 || url.indexOf(".m3u8") > -1) {
+    if (v.canPlayType("application/vnd.apple.mpegurl")) {
+      v.onerror = function() { v.onerror = null; v.src = ""; tryNextStream(src); };
+      v.src = proxyUrl; v.load();
+    } else if (window.Hls && window.Hls.isSupported()) {
+      var hls = new window.Hls(); window._hls = hls;
+      hls.on(Hls.Events.ERROR, function(ev, data) {
+        if (data.fatal) { hls.destroy(); window._hls = null; tryNextStream(src); }
+      });
+      hls.loadSource(proxyUrl); hls.attachMedia(v);
+    } else {
+      document.getElementById("player-controls").innerHTML += '<br><span class="error">HLS not supported</span>';
+    }
+  } else {
+    v.src = proxyUrl; v.load();
+  }
+}
+
+function switchHiSource() {
+  var sel = document.getElementById("hi-server-select");
+  if (!sel) return;
+  var idx = parseInt(sel.value, 10);
+  var src = CURRENT_STREAMS[idx];
+  if (src) streamHiVideo(src);
+}
+
 function playEpisode(num) {
   HI_FAILED = false;
   var ep = CURRENT_EPISODES_MAP[num];
@@ -724,7 +758,14 @@ function tryNextStream(current) {
     if (CURRENT_STREAMS[i] === current) { idx = i; break; }
   }
   if (idx >= 0 && idx + 1 < CURRENT_STREAMS.length) {
-    loadStream(CURRENT_STREAMS[idx + 1]);
+    var next = CURRENT_STREAMS[idx + 1];
+    var hiSelect = document.getElementById("hi-server-select");
+    if (hiSelect) {
+      if (hiSelect.options) hiSelect.selectedIndex = idx + 1;
+      streamHiVideo(next);
+    } else {
+      loadStream(next);
+    }
   } else {
     document.getElementById("player-controls").innerHTML += "<br><span class=\"error\">Try another server above</span>";
   }
@@ -845,28 +886,28 @@ function playHianimeEpisode(num) {
     return;
   }
 
-  consumetGet("/watch?id=" + ep.id + "&provider=" + CURRENT_PROVIDER, function(err, data) {
+  consumetGet("/watch?id=" + ep.id + "&_all=1", function(err, data) {
     var controlsEl = document.getElementById("player-controls");
     if (err || !data.sources || !data.sources.length) {
       var miruroUrl = "https://miruro.tv/search?q=" + encodeURIComponent(CURRENT_ANIME_TITLE);
-      controlsEl.innerHTML = 'HiAnime failed. <br><br><a class="ext-link" href="' + miruroUrl + '" target="_blank">Open on Miruro.to</a>';
+      controlsEl.innerHTML = 'No stream found. <br><br><a class="ext-link" href="' + miruroUrl + '" target="_blank">Open on Miruro.to</a>';
       HI_FAILED = true;
       return;
     }
-    var src = data.sources[0];
-    var url = src.url;
-    var ref = data.referer || "https://www.animesaturn.cx";
-    var proxyUrl = PROXY_BASE + "/proxy?url=" + encodeURIComponent(url) + "&referer=" + encodeURIComponent(ref);
-
     CURRENT_STREAMS = data.sources;
     CURRENT_SUBTITLES = data.tracks || [];
-    CURRENT_REFERER = data.referer || "https://www.animesaturn.cx";
 
-    var controlsHtml = '<div class="c" style="width:auto"><label>Quality:</label></div><div class="c" style="width:auto">';
-    controlsHtml += '<select id="quality-select" onchange="changeQuality()">';
-    for (var q = 0; q < data.sources.length; q++) {
-      var qlabel = data.sources[q].quality || "Auto";
-      controlsHtml += '<option value="' + q + '"' + (q === 0 ? " selected" : "") + ">" + qlabel + "</option>";
+    var first = data.sources[0];
+    var firstUrl = first.url;
+    var firstRef = first._provider === "AnimeUnity" ? "https://www.animeunity.to" : first._provider === "AnimeSaturn" ? "https://www.animesaturn.cx" : "https://www.animesaturn.cx";
+    var proxyUrl = PROXY_BASE + "/proxy?url=" + encodeURIComponent(firstUrl) + "&referer=" + encodeURIComponent(firstRef);
+
+    var controlsHtml = '<div class="c" style="width:auto"><label>Server:</label></div><div class="c" style="width:auto">';
+    controlsHtml += '<select id="hi-server-select" onchange="switchHiSource()">';
+    for (var si = 0; si < data.sources.length; si++) {
+      var si_prov = data.sources[si]._provider || "Provider";
+      var si_ql = data.sources[si].quality || "default";
+      controlsHtml += '<option value="' + si + '"' + (si === 0 ? " selected" : "") + ">" + si_prov + " (" + si_ql + ")</option>";
     }
     controlsHtml += '</select></div>';
 
@@ -878,32 +919,9 @@ function playHianimeEpisode(num) {
       }
       controlsHtml += '</select></div>';
     }
-    // Show active server
-    controlsHtml += '<div class="c" style="width:auto"><label>Server:</label></div><div class="c" style="width:auto">';
-    controlsHtml += '<select id="server-select" style="opacity:0.7"><option selected>' + CURRENT_PROVIDER + '</option></select></div>';
     controlsEl.innerHTML = controlsHtml;
 
-    // Load video
-    v.crossOrigin = "anonymous";
-    if (src.isM3U8 || url.indexOf(".m3u8") > -1) {
-      if (v.canPlayType("application/vnd.apple.mpegurl")) {
-        v.onerror = function() { v.onerror = null; v.src = ""; tryNextStream(src); };
-      v.src = proxyUrl; v.load();
-      } else if (window.Hls && window.Hls.isSupported()) {
-        var hls = new window.Hls(); window._hls = hls;
-        hls.on(Hls.Events.ERROR, function(ev, data) {
-          if (data.fatal) {
-            hls.destroy(); window._hls = null;
-            tryNextStream(src);
-          }
-        });
-        hls.loadSource(proxyUrl); hls.attachMedia(v);
-      } else {
-        controlsEl.innerHTML = '<span class="error">HLS not supported in this browser</span>';
-      }
-    } else {
-      v.src = proxyUrl; v.load();
-    }
+    streamHiVideo(first);
   });
 }
 
