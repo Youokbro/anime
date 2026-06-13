@@ -812,7 +812,7 @@ function playFromDetail(num) {
         if (mxhr.status !== 200) { _miruroDone = true; checkRender(); return; }
         try {
           var epData = JSON.parse(mxhr.responseText);
-          var provNames = ["kiwi", "moo", "ally"];
+          var provNames = ["kiwi", "ally", "bonk", "moo", "bee"];
           var provCount = 0;
           for (var pi = 0; pi < provNames.length; pi++) {
             (function(provName) {
