@@ -154,6 +154,7 @@ var CURRENT_STREAMS = [];
 var CURRENT_EP_PROVIDERS = {};
 var CURRENT_SUBTITLES = [];
 var CURRENT_REFERER = "";
+var TMDB_KEY = "0ff3dcace998b2fa393607f0af17a6a5";
 var CURRENT_ANIME_ID = 0;
 var CURRENT_ANIME_ANILIST_ID = 0;
 var CURRENT_ANIME_TITLE = "";
@@ -757,25 +758,71 @@ function loadExternalIds(mediaId) {
   CURRENT_TMDB_ID = "";
   CURRENT_IMDB_ID = "";
   anilistGraphQL("query ($id: Int) { Media(id: $id) { externalLinks { site url id } } }", { id: mediaId }, function(err, data) {
-    if (err || !data || !data.Media || !data.Media.externalLinks) return;
-    var links = data.Media.externalLinks;
-    for (var i = 0; i < links.length; i++) {
-      var site = links[i].site || "";
-      if (site === "Crunchyroll") continue;
-      var url = links[i].url || "";
-      var m = url.match(/themoviedb\.org\/(?:tv|movie)\/(\d+)/i);
-      if (m) { CURRENT_TMDB_ID = m[1]; }
-      var m2 = url.match(/imdb\.com\/title\/(tt\d+)/i);
-      if (m2) { CURRENT_IMDB_ID = m2[1]; }
+    if (!err && data && data.Media && data.Media.externalLinks) {
+      var links = data.Media.externalLinks;
+      for (var i = 0; i < links.length; i++) {
+        var site = links[i].site || "";
+        if (site === "Crunchyroll") continue;
+        var url = links[i].url || "";
+        var m = url.match(/themoviedb\.org\/(?:tv|movie)\/(\d+)/i);
+        if (m) { CURRENT_TMDB_ID = m[1]; }
+        var m2 = url.match(/imdb\.com\/title\/(tt\d+)/i);
+        if (m2) { CURRENT_IMDB_ID = m2[1]; }
+      }
     }
-    var idEl = document.getElementById("detail-ids");
-    if (idEl) {
-      var parts = [];
-      if (CURRENT_TMDB_ID) parts.push("TMDB: " + CURRENT_TMDB_ID);
-      if (CURRENT_IMDB_ID) parts.push("IMDb: " + CURRENT_IMDB_ID);
-      if (parts.length) idEl.innerHTML = parts.join(" &bull; ");
+    if (CURRENT_TMDB_ID || CURRENT_IMDB_ID) {
+      showDetailIds();
+    } else {
+      // Fallback: search TMDB by anime title
+      searchTMDB(CURRENT_ANIME_TITLE, function(tmdbId) {
+        if (tmdbId) {
+          CURRENT_TMDB_ID = tmdbId;
+          // Also fetch IMDb ID from TMDB
+          var xhr = new XMLHttpRequest();
+          xhr.open("GET", "https://api.themoviedb.org/3/tv/" + tmdbId + "/external_ids?api_key=" + TMDB_KEY);
+          xhr.onload = function() {
+            if (xhr.status === 200) {
+              var edata = JSON.parse(xhr.responseText);
+              if (edata.imdb_id) CURRENT_IMDB_ID = edata.imdb_id;
+            }
+            showDetailIds();
+          };
+          xhr.onerror = function() { showDetailIds(); };
+          xhr.send();
+        } else {
+          showDetailIds();
+        }
+      });
     }
   });
+}
+
+function searchTMDB(title, callback) {
+  var xhr = new XMLHttpRequest();
+  xhr.open("GET", "https://api.themoviedb.org/3/search/tv?api_key=" + TMDB_KEY + "&query=" + encodeURIComponent(title) + "&language=en-US");
+  xhr.onload = function() {
+    if (xhr.status === 200) {
+      var data = JSON.parse(xhr.responseText);
+      if (data.results && data.results.length > 0) {
+        callback(data.results[0].id);
+      } else {
+        callback(null);
+      }
+    } else {
+      callback(null);
+    }
+  };
+  xhr.onerror = function() { callback(null); };
+  xhr.send();
+}
+
+function showDetailIds() {
+  var idEl = document.getElementById("detail-ids");
+  if (!idEl) return;
+  var parts = [];
+  if (CURRENT_TMDB_ID) parts.push("TMDB: " + CURRENT_TMDB_ID);
+  if (CURRENT_IMDB_ID) parts.push("IMDb: " + CURRENT_IMDB_ID);
+  idEl.innerHTML = parts.length ? parts.join(" &bull; ") : "";
 }
 
 function streamHiVideo(src) {
