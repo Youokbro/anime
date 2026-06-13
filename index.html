@@ -717,8 +717,7 @@ function playFromDetail(num) {
 
   var allSources = [];
   var allTracks = [];
-  var _ezDone = false;
-  var _miruroDone = false;
+  var _rendered = false;
 
   function addSource(src) {
     for (var c = 0; c < allSources.length; c++) { if (allSources[c].url === src.url) return; }
@@ -729,6 +728,8 @@ function playFromDetail(num) {
     for (var t = 0; t < tracks.length; t++) { allTracks.push(tracks[t]); }
   }
   function renderSources() {
+    if (_rendered) return;
+    _rendered = true;
     if (!allSources.length) {
       document.getElementById("player-controls").innerHTML = '<div class="error">All sources failed</div>';
       return;
@@ -768,10 +769,6 @@ function playFromDetail(num) {
     loadStream(allSources[0]);
   }
 
-  function checkAllLoaded() {
-    if (_ezDone && _miruroDone) renderSources();
-  }
-
   // --- EzVidApi sources (TMDB-based) ---
   if (CURRENT_TMDB_ID) {
     var EZ_PROVIDERS = ["vidlink", "vidnest", "vidrock"];
@@ -791,82 +788,80 @@ function playFromDetail(num) {
             } catch (e) {}
           }
           loadedEz++;
-          if (loadedEz === EZ_PROVIDERS.length) { _ezDone = true; checkAllLoaded(); }
+          if (loadedEz === EZ_PROVIDERS.length) renderSources();
         };
-        ezxhr.onerror = function() { loadedEz++; if (loadedEz === EZ_PROVIDERS.length) { _ezDone = true; checkAllLoaded(); } };
+        ezxhr.onerror = function() { loadedEz++; if (loadedEz === EZ_PROVIDERS.length) renderSources(); };
         ezxhr.send();
       })(num, EZ_PROVIDERS[ezi]);
     }
   } else {
-    _ezDone = true;
-    checkAllLoaded();
+    setTimeout(function() { renderSources(); }, 8000);
   }
 
   // --- Miruro-API sources (AniList-based) ---
   if (CURRENT_ANIME_ANILIST_ID) {
-    var mxhr = new XMLHttpRequest();
-    mxhr.open("GET", MIRURO_API + "/episodes/" + CURRENT_ANIME_ANILIST_ID, true);
-    mxhr.onload = function() {
-      if (mxhr.status !== 200) { _miruroDone = true; checkAllLoaded(); return; }
-      try {
-        var epData = JSON.parse(mxhr.responseText);
-        var providers = epData.providers || {};
-        var provNames = Object.keys(providers);
-        var foundEps = [];
-        for (var p = 0; p < provNames.length; p++) {
-          var prov = providers[provNames[p]];
-          var eps = prov.episodes || {};
-          var subEps = eps.sub || [];
-          for (var e = 0; e < subEps.length; e++) {
-            if (subEps[e].number === num) {
-              foundEps.push({ provider: provNames[p], id: subEps[e].id });
-              break;
+    (function(epNum) {
+      var mxhr = new XMLHttpRequest();
+      mxhr.open("GET", MIRURO_API + "/episodes/" + CURRENT_ANIME_ANILIST_ID, true);
+      mxhr.onload = function() {
+        if (mxhr.status !== 200) return;
+        try {
+          var epData = JSON.parse(mxhr.responseText);
+          var providers = epData.providers || {};
+          var provNames = Object.keys(providers);
+          var foundEps = [];
+          for (var p = 0; p < provNames.length; p++) {
+            var prov = providers[provNames[p]];
+            var eps = prov.episodes || {};
+            var subEps = eps.sub || [];
+            for (var e = 0; e < subEps.length; e++) {
+              if (subEps[e].number === epNum) {
+                foundEps.push({ provider: provNames[p], id: subEps[e].id });
+                break;
+              }
             }
           }
-        }
-        if (!foundEps.length) { _miruroDone = true; checkAllLoaded(); return; }
-        var miruroLoaded = 0;
-        for (var f = 0; f < foundEps.length; f++) {
-          (function(fep) {
-            var sxhr = new XMLHttpRequest();
-            sxhr.open("GET", MIRURO_API + "/" + fep.id, true);
-            sxhr.onload = function() {
-              if (sxhr.status === 200) {
-                try {
-                  var sData = JSON.parse(sxhr.responseText);
-                  var streams = sData.streams || [];
-                  for (var s = 0; s < streams.length; s++) {
-                    var url = streams[s].url;
-                    if (url.indexOf("kwik.cx") > -1) continue;
-                    addSource({
-                      url: url,
-                      type: streams[s].type || "hls",
-                      quality: streams[s].quality || "Auto",
-                      _provider: fep.provider.charAt(0).toUpperCase() + fep.provider.slice(1)
-                    });
-                  }
-                  if (sData.subtitles) addTracks(sData.subtitles);
-                  if (sData.intro && sData.intro.start != null && !_skipTimes) {
-                    _skipTimes = {};
-                    _skipTimes.op = { startTime: sData.intro.start, endTime: sData.intro.end || 90 };
-                    setupSkipDetection();
-                  }
-                } catch (e) {}
-              }
-              miruroLoaded++;
-              if (miruroLoaded === foundEps.length) { _miruroDone = true; checkAllLoaded(); }
-            };
-            sxhr.onerror = function() { miruroLoaded++; if (miruroLoaded === foundEps.length) { _miruroDone = true; checkAllLoaded(); } };
-            sxhr.send();
-          })(foundEps[f]);
-        }
-      } catch (e) { _miruroDone = true; checkAllLoaded(); }
-    };
-    mxhr.onerror = function() { _miruroDone = true; checkAllLoaded(); };
-    mxhr.send();
-  } else {
-    _miruroDone = true;
-    checkAllLoaded();
+          if (!foundEps.length) return;
+          var miruroLoaded = 0;
+          for (var f = 0; f < foundEps.length; f++) {
+            (function(fep) {
+              var sxhr = new XMLHttpRequest();
+              sxhr.open("GET", MIRURO_API + "/" + fep.id, true);
+              sxhr.onload = function() {
+                if (sxhr.status === 200) {
+                  try {
+                    var sData = JSON.parse(sxhr.responseText);
+                    var streams = sData.streams || [];
+                    for (var s = 0; s < streams.length; s++) {
+                      var url = streams[s].url;
+                      if (url.indexOf("kwik.cx") > -1) continue;
+                      addSource({
+                        url: url,
+                        type: streams[s].type || "hls",
+                        quality: streams[s].quality || "Auto",
+                        _provider: fep.provider.charAt(0).toUpperCase() + fep.provider.slice(1)
+                      });
+                    }
+                    if (sData.subtitles) addTracks(sData.subtitles);
+                    if (sData.intro && sData.intro.start != null && !_skipTimes) {
+                      _skipTimes = {};
+                      _skipTimes.op = { startTime: sData.intro.start, endTime: sData.intro.end || 90 };
+                      setupSkipDetection();
+                    }
+                  } catch (e) {}
+                }
+                miruroLoaded++;
+                if (miruroLoaded === foundEps.length) renderSources();
+              };
+              sxhr.onerror = function() { miruroLoaded++; if (miruroLoaded === foundEps.length) renderSources(); };
+              sxhr.send();
+            })(foundEps[f]);
+          }
+        } catch (e) {}
+      };
+      mxhr.onerror = function() {};
+      mxhr.send();
+    })(num);
   }
 }
 
