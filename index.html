@@ -145,6 +145,7 @@ input,button{font-size:16px}
 <script>
 var CURRENT_STREAMS = [];
 var CURRENT_SUBTITLES = [];
+var _failTimeout = null;
 var TMDB_KEY = "0ff3dcace998b2fa393607f0af17a6a5";
 var MIRURO_API = "https://miruro-api-navy.vercel.app";
 var PROXY_BASE = "https://anim-proxy.ahaantadi.workers.dev/";
@@ -712,15 +713,15 @@ function playFromDetail(num) {
   var v = document.getElementById("player-video");
   v.pause(); v.src = ""; v.innerHTML = "";
   if (window._hls) { window._hls.destroy(); window._hls = null; }
+  if (_failTimeout) { clearTimeout(_failTimeout); _failTimeout = null; }
   document.getElementById("player-info").innerHTML = CURRENT_ANIME_TITLE + " - Ep " + num;
-  document.getElementById("player-controls").innerHTML = '<span class="loading">Loading sources...</span>';
+  document.getElementById("player-controls").innerHTML = '<span class="loading">Checking all sources...</span>';
   document.getElementById("player-subtitles").innerHTML = "";
 
   var allSources = [];
   var allTracks = [];
-  var _ezDone = false;
-  var _miruroDone = false;
-  var _failTimeout = null;
+  var _rendered = false;
+  var _pending = 0;
 
   function parseQuality(q) {
     if (!q) return 720;
@@ -731,9 +732,17 @@ function playFromDetail(num) {
   }
 
   function addSource(src) {
-    for (var c = 0; c < allSources.length; c++) { if (allSources[c].url === src.url) return; }
     if (parseQuality(src.quality) < 720) return;
+    for (var c = 0; c < allSources.length; c++) { if (allSources[c].url === src.url) return; }
     allSources.push(src);
+    allSources.sort(function(a, b) { return (parseQuality(b.quality) - parseQuality(a.quality)) || ((a._provider || "").localeCompare(b._provider || "")); });
+    CURRENT_STREAMS = allSources;
+    if (!_rendered) {
+      _rendered = true;
+      doRender();
+    } else {
+      updateServerDropdown();
+    }
   }
 
   function addTracks(tracks) {
@@ -741,50 +750,27 @@ function playFromDetail(num) {
     for (var t = 0; t < tracks.length; t++) { allTracks.push(tracks[t]); }
   }
 
-  function renderSources() {
-    if (!allSources.length) {
-      document.getElementById("player-controls").innerHTML = '<div class="error">All sources failed</div>';
-      return;
-    }
-    allSources.sort(function(a, b) { return (parseQuality(b.quality) - parseQuality(a.quality)) || ((a._provider || "").localeCompare(b._provider || "")); });
-    CURRENT_STREAMS = allSources;
-    CURRENT_SUBTITLES = allTracks;
-
-    var controlsHtml = '';
-
-    if (allTracks.length) {
-      controlsHtml += '<div class="c" style="width:auto"><label>Subs:</label></div><div class="c" style="width:auto">';
-      controlsHtml += '<select onchange="changeSub(this.value)"><option value="">None</option>';
-      for (var j = 0; j < allTracks.length; j++) {
-        controlsHtml += '<option value="' + j + '">' + (allTracks[j].label || "Track " + (j+1)) + "</option>";
+  function oneDone() {
+    _pending--;
+    if (!_rendered && _pending <= 0) {
+      if (allSources.length) {
+        _rendered = true;
+        doRender();
+      } else {
+        document.getElementById("player-controls").innerHTML = '<div class="error">All sources failed</div>';
       }
-      controlsHtml += '</select></div>';
     }
-
-    controlsHtml += '<div class="c" style="width:auto"><label>Server:</label></div><div class="c" style="width:auto">';
-    controlsHtml += '<select id="server-select" onchange="switchStream(this.value)">';
-    for (var si = 0; si < allSources.length; si++) {
-      var sprov = allSources[si]._provider || "Source";
-      var sq = allSources[si].quality || "";
-      controlsHtml += '<option value="' + si + '"' + (si === 0 ? " selected" : "") + '>' + sprov + (sq ? " (" + sq + ")" : "") + '</option>';
-    }
-    controlsHtml += '</select></div>';
-
-    controlsHtml += '<div class="c" style="width:auto;white-space:nowrap"><label><input type="checkbox" onclick="_autoSkip=this.checked" style="vertical-align:middle"> AutoSkip</label></div>';
-
-    document.getElementById("player-controls").innerHTML = controlsHtml;
-    loadStream(allSources[0]);
   }
 
-  function checkRender() {
-    if (_ezDone && _miruroDone) renderSources();
-  }
+  // --- fallback: if no requests fired, show error ---
+  var _noRequests = true;
 
   // --- EzVidApi sources (TMDB-based) ---
   if (CURRENT_TMDB_ID) {
+    _noRequests = false;
     var EZ_PROVIDERS = ["vidlink", "vidnest", "vidrock"];
-    var loadedEz = 0;
     for (var ezi = 0; ezi < EZ_PROVIDERS.length; ezi++) {
+      _pending++;
       (function(tmdbEp, ezProv) {
         var ezxhr = new XMLHttpRequest();
         ezxhr.open("GET", "https://api.ezvidapi.com/tv/" + ezProv + "/" + CURRENT_TMDB_ID + "?season=" + CURRENT_SEASON + "&episode=" + tmdbEp);
@@ -798,39 +784,37 @@ function playFromDetail(num) {
               }
             } catch (e) {}
           }
-          loadedEz++;
-          if (loadedEz === EZ_PROVIDERS.length) { _ezDone = true; checkRender(); }
+          oneDone();
         };
-        ezxhr.onerror = function() { loadedEz++; if (loadedEz === EZ_PROVIDERS.length) { _ezDone = true; checkRender(); } };
+        ezxhr.onerror = function() { oneDone(); };
         ezxhr.send();
       })(num, EZ_PROVIDERS[ezi]);
     }
-  } else {
-    _ezDone = true;
-    checkRender();
   }
 
-  // --- Miruro-API providers (kiwi, moo, ally — proxied through Cloudflare) ---
+  // --- Miruro-API providers ---
   if (CURRENT_ANIME_ANILIST_ID) {
+    _noRequests = false;
+    _pending++;
     (function(epNum) {
       var mxhr = new XMLHttpRequest();
       mxhr.open("GET", MIRURO_API + "/episodes/" + CURRENT_ANIME_ANILIST_ID, true);
       mxhr.onload = function() {
-        if (mxhr.status !== 200) { _miruroDone = true; checkRender(); return; }
+        if (mxhr.status !== 200) { oneDone(); return; }
         try {
           var epData = JSON.parse(mxhr.responseText);
           var provNames = ["kiwi", "ally", "bonk", "moo", "bee"];
-          var provCount = 0;
           for (var pi = 0; pi < provNames.length; pi++) {
             (function(provName) {
               var prov = epData.providers && epData.providers[provName];
-              if (!prov) { provCount++; if (provCount === provNames.length) { _miruroDone = true; checkRender(); } return; }
+              if (!prov) return;
               var subEps = (prov.episodes && prov.episodes.sub) || [];
               var found = null;
               for (var e = 0; e < subEps.length; e++) {
                 if (subEps[e].number === epNum) { found = subEps[e]; break; }
               }
-              if (!found) { provCount++; if (provCount === provNames.length) { _miruroDone = true; checkRender(); } return; }
+              if (!found) return;
+              _pending++;
               var bxhr = new XMLHttpRequest();
               bxhr.open("GET", MIRURO_API + "/" + found.id, true);
               bxhr.onload = function() {
@@ -855,20 +839,89 @@ function playFromDetail(num) {
                     if (bData.subtitles) addTracks(bData.subtitles);
                   } catch (e) {}
                 }
-                provCount++;
-                if (provCount === provNames.length) { _miruroDone = true; checkRender(); }
+                oneDone();
               };
-              bxhr.onerror = function() { provCount++; if (provCount === provNames.length) { _miruroDone = true; checkRender(); } };
+              bxhr.onerror = function() { oneDone(); };
               bxhr.send();
             })(provNames[pi]);
           }
-        } catch (e) { _miruroDone = true; checkRender(); }
+        } catch (e) {}
+        oneDone();
       };
-      mxhr.onerror = function() { _miruroDone = true; checkRender(); };
+      mxhr.onerror = function() { oneDone(); };
       mxhr.send();
     })(num);
-  } else {
-    _miruroDone = true;
+  }
+
+  if (_noRequests) {
+    document.getElementById("player-controls").innerHTML = '<div class="error">No TMDB or AniList ID available</div>';
+    return;
+  }
+
+  function doRender() {
+    CURRENT_STREAMS = allSources;
+    CURRENT_SUBTITLES = allTracks;
+
+    var controlsHtml = '';
+    if (allTracks.length) {
+      controlsHtml += '<div class="c" style="width:auto"><label>Subs:</label></div><div class="c" style="width:auto">';
+      controlsHtml += '<select onchange="changeSub(this.value)"><option value="">None</option>';
+      for (var j = 0; j < allTracks.length; j++) {
+        controlsHtml += '<option value="' + j + '">' + (allTracks[j].label || "Track " + (j+1)) + "</option>";
+      }
+      controlsHtml += '</select></div>';
+    }
+    controlsHtml += '<div class="c" style="width:auto"><label>Server:</label></div><div class="c" style="width:auto">';
+    controlsHtml += '<select id="server-select" onchange="switchStream(this.value)">';
+    for (var si = 0; si < allSources.length; si++) {
+      var sprov = allSources[si]._provider || "Source";
+      var sq = allSources[si].quality || "";
+      controlsHtml += '<option value="' + si + '"' + (si === 0 ? " selected" : "") + '>' + sprov + (sq ? " (" + sq + ")" : "") + '</option>';
+    }
+    controlsHtml += '</select></div>';
+    controlsHtml += '<div class="c" style="width:auto;white-space:nowrap"><label><input type="checkbox" onclick="_autoSkip=this.checked" style="vertical-align:middle"> AutoSkip</label></div>';
+    if (_pending > 0) {
+      controlsHtml += '<div class="c" style="width:auto"><span style="color:#888;font-size:11px">Checking ' + _pending + ' more...</span></div>';
+    }
+    document.getElementById("player-controls").innerHTML = controlsHtml;
+    loadStream(allSources[0]);
+  }
+
+  function updateServerDropdown() {
+    var sel = document.getElementById("server-select");
+    if (!sel) return;
+    var curVal = sel.value;
+    var html = '';
+    for (var si = 0; si < allSources.length; si++) {
+      var sprov = allSources[si]._provider || "Source";
+      var sq = allSources[si].quality || "";
+      html += '<option value="' + si + '">' + sprov + (sq ? " (" + sq + ")" : "") + '</option>';
+    }
+    sel.innerHTML = html;
+    if (curVal && parseInt(curVal, 10) < allSources.length) { sel.value = curVal; }
+    // Update checking indicator
+    var ci = document.getElementById("checking-indicator");
+    if (_pending > 0) {
+      if (!ci) {
+        var pc = document.getElementById("player-controls");
+        if (pc) {
+          var cs = pc.getElementsByTagName("div");
+          var lastc = cs.length > 0 ? cs[cs.length - 1] : null;
+          if (lastc) {
+            var ciDiv = document.createElement("div");
+            ciDiv.id = "checking-indicator";
+            ciDiv.className = "c";
+            ciDiv.style.cssText = "width:auto";
+            ciDiv.innerHTML = '<span style="color:#888;font-size:11px">+' + _pending + '...</span>';
+            lastc.parentNode.insertBefore(ciDiv, lastc.nextSibling);
+          }
+        }
+      } else {
+        ci.innerHTML = '<span style="color:#888;font-size:11px">+' + _pending + '...</span>';
+      }
+    } else if (ci) {
+      ci.parentNode.removeChild(ci);
+    }
   }
 }
 
@@ -1094,6 +1147,7 @@ function closePlayer() {
   v.pause(); v.src = "";
   if (window._hls) { window._hls.destroy(); window._hls = null; }
   if (_skipInterval) { clearInterval(_skipInterval); _skipInterval = null; }
+  if (_failTimeout) { clearTimeout(_failTimeout); _failTimeout = null; }
   _skipTimes = null;
   showPage("detail");
 }
