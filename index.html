@@ -399,7 +399,7 @@ function loadHome() {
           }
           html += h + '</tr></table></div>';
         }
-        if (loaded === queries.length) { html += h + '</tr></table></div>'; checkDone(); }
+        if (loaded === queries.length) { checkDone(); }
       });
     })(i);
   }
