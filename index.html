@@ -1083,7 +1083,7 @@ function loadStream(stream) {
   var url = stream.url;
   v.crossOrigin = "anonymous";
 
-  _failTimeout = setTimeout(function() { tryNextStream(stream, "timeout"); }, 5000);
+  _failTimeout = setTimeout(function() { tryNextStream(stream, "timeout"); }, 10000);
 
   var gotData = false;
   v.addEventListener("loadeddata", function() {
