@@ -875,12 +875,15 @@ function playEpisode(num) {
       if (dup) continue;
       controlsHtml += '<option value="s' + si + '">' + sprov + (sq ? " (" + sq + ")" : "") + '</option>';
     }
-    if (CURRENT_TMDB_ID || CURRENT_IMDB_ID) {
-      if (CURRENT_TMDB_ID) {
-        controlsHtml += '<option value="e_vidsrc">Vidsrc</option>';
-        controlsHtml += '<option value="e_2embed">2Embed</option>';
-        controlsHtml += '<option value="e_multiembed">MultiEmbed</option>';
-      }
+    if (CURRENT_TMDB_ID) {
+      controlsHtml += '<option value="e_vidsrc_tmdb">Vidsrc (TMDB)</option>';
+      controlsHtml += '<option value="e_2embed_tmdb">2Embed (TMDB)</option>';
+      controlsHtml += '<option value="e_multiembed_tmdb">MultiEmbed (TMDB)</option>';
+    }
+    if (CURRENT_IMDB_ID) {
+      controlsHtml += '<option value="e_vidsrc_imdb">Vidsrc (IMDb)</option>';
+      controlsHtml += '<option value="e_2embed_imdb">2Embed (IMDb)</option>';
+      controlsHtml += '<option value="e_multiembed_imdb">MultiEmbed (IMDb)</option>';
     }
     controlsHtml += '</select></div>';
 
@@ -1058,21 +1061,21 @@ function switchServer(num) {
       loadStream(CURRENT_STREAMS[idx]);
     }
   } else if (val.indexOf("e_") === 0) {
-    // Embed source switch
-    var embedName = val.substring(2);
-    var id = CURRENT_TMDB_ID || CURRENT_IMDB_ID;
+    // Embed source switch — format: e_{name}_{tmdb|imdb}
+    var parts = val.split("_");
+    var embedName = parts[1];
+    var idType = parts[2] || "tmdb";
+    var id = idType === "imdb" ? CURRENT_IMDB_ID : CURRENT_TMDB_ID;
     if (!id) return;
     var season = 1;
     var episode = num;
     var url = "";
     if (embedName === "vidsrc") {
-      if (CURRENT_TMDB_ID) url = "https://vidsrc.to/embed/tv/" + CURRENT_TMDB_ID + "/" + season + "/" + episode;
-      else if (CURRENT_IMDB_ID) url = "https://vidsrc.to/embed/tv/" + CURRENT_IMDB_ID + "/" + season + "/" + episode;
+      url = "https://vidsrc.to/embed/tv/" + id + "/" + season + "/" + episode;
     } else if (embedName === "2embed") {
-      if (CURRENT_IMDB_ID) url = "https://www.2embed.cc/embedtv/" + CURRENT_IMDB_ID + "&s=" + season + "&e=" + episode;
-      else if (CURRENT_TMDB_ID) url = "https://www.2embed.cc/embedtv/" + CURRENT_TMDB_ID + "&s=" + season + "&e=" + episode;
+      url = "https://www.2embed.cc/embedtv/" + id + "&s=" + season + "&e=" + episode;
     } else if (embedName === "multiembed") {
-      if (CURRENT_TMDB_ID) url = "https://multiembed.cc/embed/tv/" + CURRENT_TMDB_ID + "/" + season + "/" + episode;
+      url = "https://multiembed.cc/embed/tv/" + id + "/" + season + "/" + episode;
     }
     if (!url) return;
     document.getElementById("player-video").style.display = "none";
@@ -1229,12 +1232,15 @@ function playHianimeEpisode(num) {
       if (dup) continue;
       controlsHtml += '<option value="s' + si + '"' + (si === 0 && !allProvs.length ? " selected" : "") + '>' + si_prov + (si_ql ? " (" + si_ql + ")" : "") + '</option>';
     }
-    if (CURRENT_TMDB_ID || CURRENT_IMDB_ID) {
-      if (CURRENT_TMDB_ID) {
-        controlsHtml += '<option value="e_vidsrc">Vidsrc</option>';
-        controlsHtml += '<option value="e_2embed">2Embed</option>';
-        controlsHtml += '<option value="e_multiembed">MultiEmbed</option>';
-      }
+    if (CURRENT_TMDB_ID) {
+      controlsHtml += '<option value="e_vidsrc_tmdb">Vidsrc (TMDB)</option>';
+      controlsHtml += '<option value="e_2embed_tmdb">2Embed (TMDB)</option>';
+      controlsHtml += '<option value="e_multiembed_tmdb">MultiEmbed (TMDB)</option>';
+    }
+    if (CURRENT_IMDB_ID) {
+      controlsHtml += '<option value="e_vidsrc_imdb">Vidsrc (IMDb)</option>';
+      controlsHtml += '<option value="e_2embed_imdb">2Embed (IMDb)</option>';
+      controlsHtml += '<option value="e_multiembed_imdb">MultiEmbed (IMDb)</option>';
     }
     controlsHtml += '</select></div>';
 
