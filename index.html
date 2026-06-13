@@ -627,8 +627,84 @@ function loadTmdbEpisodes(tmdbId, seasonNum) {
 
 var CURRENT_EPISODE_LIST = [];
 
+var _skipTimes = null;
+var _skipInterval = null;
+var _autoSkip = false;
+
+function fetchSkipTimes(anilistId, episodeNum) {
+  _skipTimes = null;
+  if (_skipInterval) { clearInterval(_skipInterval); _skipInterval = null; }
+  var sb = document.getElementById("skip-btn");
+  if (sb) { sb.parentNode.removeChild(sb); }
+  if (!anilistId) return;
+  var x = new XMLHttpRequest();
+  x.open("GET", "https://api.aniskip.com/v2/skip-times/" + anilistId + "/" + episodeNum + "?types=op&types=ed&episodeLength=0", true);
+  x.onload = function() {
+    if (x.status !== 200) return;
+    try {
+      var d = JSON.parse(x.responseText);
+      if (d.found && d.results) {
+        _skipTimes = {};
+        for (var i = 0; i < d.results.length; i++) {
+          var r = d.results[i];
+          if (r.skipType === "op") _skipTimes.op = r.interval;
+          else if (r.skipType === "ed") _skipTimes.ed = r.interval;
+        }
+        if (_skipTimes.op || _skipTimes.ed) setupSkipDetection();
+      }
+    } catch (e) {}
+  };
+  x.send();
+}
+
+function setupSkipDetection() {
+  if (_skipInterval) clearInterval(_skipInterval);
+  _skipInterval = setInterval(function() {
+    var v = document.getElementById("player-video");
+    if (!v || !v.src) return;
+    var t = v.currentTime;
+    var skipContainer = document.getElementById("player-subtitles");
+    var sb = document.getElementById("skip-btn");
+    var skipType = null;
+    if (_skipTimes.op && t >= _skipTimes.op.startTime && t < _skipTimes.op.endTime) skipType = "op";
+    else if (_skipTimes.ed && t >= _skipTimes.ed.startTime && t < _skipTimes.ed.endTime) skipType = "ed";
+
+    if (_autoSkip && skipType && _skipTimes[skipType]) {
+      v.currentTime = _skipTimes[skipType].endTime;
+      return;
+    }
+
+    if (skipType) {
+      if (!sb) {
+        var div = document.createElement("div");
+        div.id = "skip-btn";
+        div.style.cssText = "text-align:center;padding:6px";
+        var label = skipType === "op" ? "Skip Intro" : "Skip Outro";
+        div.innerHTML = '<button onclick="doSkip()" style="padding:8px 18px;background:#38bdf8;color:#000;border:none;border-radius:4px;font-weight:bold;font-size:14px;cursor:pointer">' + label + '</button>';
+        skipContainer.appendChild(div);
+      }
+    } else {
+      if (sb) sb.parentNode.removeChild(sb);
+    }
+  }, 500);
+}
+
+function doSkip() {
+  var v = document.getElementById("player-video");
+  if (!v || !_skipTimes) return;
+  var t = v.currentTime;
+  if (_skipTimes.op && t >= _skipTimes.op.startTime && t < _skipTimes.op.endTime) {
+    v.currentTime = _skipTimes.op.endTime;
+  } else if (_skipTimes.ed && t >= _skipTimes.ed.startTime && t < _skipTimes.ed.endTime) {
+    v.currentTime = _skipTimes.ed.endTime;
+  }
+  var sb = document.getElementById("skip-btn");
+  if (sb) sb.parentNode.removeChild(sb);
+}
+
 function playFromDetail(num) {
   saveAnilistProgress(CURRENT_ANIME_ANILIST_ID, num);
+  fetchSkipTimes(CURRENT_ANIME_ANILIST_ID, num);
   document.getElementById("player-video").style.display = "block";
   showPage("player");
   var v = document.getElementById("player-video");
@@ -682,6 +758,8 @@ function playFromDetail(num) {
       controlsHtml += '<option value="' + si + '"' + (si === 0 ? " selected" : "") + '>' + sprov + (sq ? " (" + sq + ")" : "") + '</option>';
     }
     controlsHtml += '</select></div>';
+
+    controlsHtml += '<div class="c" style="width:auto;white-space:nowrap"><label><input type="checkbox" onclick="_autoSkip=this.checked" style="vertical-align:middle"> AutoSkip</label></div>';
 
     document.getElementById("player-controls").innerHTML = controlsHtml;
     loadStream(allSources[0]);
@@ -920,6 +998,8 @@ function closePlayer() {
   var v = document.getElementById("player-video");
   v.pause(); v.src = "";
   if (window._hls) { window._hls.destroy(); window._hls = null; }
+  if (_skipInterval) { clearInterval(_skipInterval); _skipInterval = null; }
+  _skipTimes = null;
   showPage("detail");
 }
 
