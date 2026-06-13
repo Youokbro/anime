@@ -147,6 +147,7 @@ var CURRENT_STREAMS = [];
 var CURRENT_SUBTITLES = [];
 var _failTimeout = null;
 var _episodeCache = {};
+var _currentSubIdx = -1;
 var TMDB_KEY = "0ff3dcace998b2fa393607f0af17a6a5";
 var MIRURO_API = "https://miruro-api-navy.vercel.app";
 var PROXY_BASE = "https://anim-proxy.ahaantadi.workers.dev/";
@@ -723,6 +724,7 @@ function playFromDetail(num) {
   var allTracks = [];
   var _rendered = false;
   var _pending = 0;
+  _currentSubIdx = -1;
 
   function parseQuality(q) {
     if (!q) return 720;
@@ -878,7 +880,7 @@ function playFromDetail(num) {
     var controlsHtml = '';
     if (allTracks.length) {
       controlsHtml += '<div class="c" style="width:auto"><label>Subs:</label></div><div class="c" style="width:auto">';
-      controlsHtml += '<select onchange="changeSub(this.value)"><option value="">None</option>';
+      controlsHtml += '<select id="sub-select" onchange="changeSub(this.value)"><option value="">None</option>';
       for (var j = 0; j < allTracks.length; j++) {
         controlsHtml += '<option value="' + j + '">' + (allTracks[j].label || "Track " + (j+1)) + "</option>";
       }
@@ -1074,6 +1076,32 @@ function showDetailIds() {
   idEl.innerHTML = parts.length ? parts.join(" &bull; ") : "";
 }
 
+function applySubs() {
+  var v = document.getElementById("player-video");
+  var t = v.getElementsByTagName("track");
+  while (t.length) v.removeChild(t[0]);
+  if (_currentSubIdx < 0) {
+    // Auto-select first English sub
+    for (var i = 0; i < CURRENT_SUBTITLES.length; i++) {
+      var lbl = (CURRENT_SUBTITLES[i].label || "").toLowerCase();
+      if (lbl.indexOf("english") > -1 || lbl.indexOf("eng") > -1 || lbl === "en" || lbl.indexOf("subs") > -1) {
+        _currentSubIdx = i; break;
+      }
+    }
+    if (_currentSubIdx < 0 && CURRENT_SUBTITLES.length) _currentSubIdx = 0;
+  }
+  if (_currentSubIdx >= 0 && _currentSubIdx < CURRENT_SUBTITLES.length) {
+    var s = CURRENT_SUBTITLES[_currentSubIdx];
+    if (s && s.file) {
+      var tr = document.createElement("track");
+      tr.kind = "subtitles"; tr.label = s.label || "English"; tr.srclang = "en"; tr.src = s.file; tr.default = true;
+      v.appendChild(tr);
+    }
+  }
+  var ss = document.getElementById("sub-select");
+  if (ss) ss.value = _currentSubIdx >= 0 ? _currentSubIdx : "";
+}
+
 function loadStream(stream) {
   var v = document.getElementById("player-video");
   v.pause(); v.src = ""; v.innerHTML = "";
@@ -1111,6 +1139,8 @@ function loadStream(stream) {
   } else {
     document.getElementById("player-controls").innerHTML = '<span class="error">HLS not supported in this browser</span>';
   }
+  
+  setTimeout(function() { applySubs(); }, 200);
 }
 
 function tryNextStream(current, reason) {
@@ -1143,15 +1173,8 @@ function changeQuality() {
 }
 
 function changeSub(val) {
-  var v = document.getElementById("player-video");
-  var t = v.getElementsByTagName("track");
-  while (t.length) v.removeChild(t[0]);
-  if (val === "") return;
-  var s = CURRENT_SUBTITLES[parseInt(val, 10)];
-  if (!s || !s.file) return;
-  var tr = document.createElement("track");
-  tr.kind = "subtitles"; tr.label = s.label || "Subs"; tr.srclang = "en"; tr.src = s.file; tr.default = true;
-  v.appendChild(tr);
+  _currentSubIdx = val === "" ? -1 : parseInt(val, 10);
+  applySubs();
 }
 
 function closePlayer() {
