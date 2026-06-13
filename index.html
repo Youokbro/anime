@@ -146,9 +146,8 @@ input,button{font-size:16px}
 var CURRENT_STREAMS = [];
 var CURRENT_SUBTITLES = [];
 var TMDB_KEY = "0ff3dcace998b2fa393607f0af17a6a5";
-// Miruro sources endpoint temporarily down
-// var MIRURO_API = "https://anim-proxy.ahaantadi.workers.dev/miruro";
-// var PROXY_BASE = "https://anim-proxy.ahaantadi.workers.dev/";
+var MIRURO_API = "https://miruro-api-navy.vercel.app";
+var PROXY_BASE = "https://anim-proxy.ahaantadi.workers.dev/";
 var CURRENT_ANIME_ID = 0;
 var CURRENT_ANIME_ANILIST_ID = 0;
 var CURRENT_ANIME_TITLE = "";
@@ -720,6 +719,7 @@ function playFromDetail(num) {
   var allSources = [];
   var allTracks = [];
   var _ezDone = false;
+  var _miruroDone = false;
 
   function addSource(src) {
     for (var c = 0; c < allSources.length; c++) { if (allSources[c].url === src.url) return; }
@@ -769,6 +769,10 @@ function playFromDetail(num) {
     loadStream(allSources[0]);
   }
 
+  function checkRender() {
+    if (_ezDone && _miruroDone) renderSources();
+  }
+
   // --- EzVidApi sources (TMDB-based) ---
   if (CURRENT_TMDB_ID) {
     var EZ_PROVIDERS = ["vidlink", "vidnest", "vidrock"];
@@ -788,15 +792,66 @@ function playFromDetail(num) {
             } catch (e) {}
           }
           loadedEz++;
-          if (loadedEz === EZ_PROVIDERS.length) { _ezDone = true; renderSources(); }
+          if (loadedEz === EZ_PROVIDERS.length) { _ezDone = true; checkRender(); }
         };
-        ezxhr.onerror = function() { loadedEz++; if (loadedEz === EZ_PROVIDERS.length) { _ezDone = true; renderSources(); } };
+        ezxhr.onerror = function() { loadedEz++; if (loadedEz === EZ_PROVIDERS.length) { _ezDone = true; checkRender(); } };
         ezxhr.send();
       })(num, EZ_PROVIDERS[ezi]);
     }
   } else {
     _ezDone = true;
-    renderSources();
+    checkRender();
+  }
+
+  // --- Miruro-API kiwi provider (proxied through Cloudflare) ---
+  if (CURRENT_ANIME_ANILIST_ID) {
+    (function(epNum) {
+      var mxhr = new XMLHttpRequest();
+      mxhr.open("GET", MIRURO_API + "/episodes/" + CURRENT_ANIME_ANILIST_ID, true);
+      mxhr.onload = function() {
+        if (mxhr.status !== 200) { _miruroDone = true; checkRender(); return; }
+        try {
+          var epData = JSON.parse(mxhr.responseText);
+          var provData = epData.providers && epData.providers.kiwi;
+          if (!provData) { _miruroDone = true; checkRender(); return; }
+          var subEps = (provData.episodes && provData.episodes.sub) || [];
+          var found = null;
+          for (var e = 0; e < subEps.length; e++) {
+            if (subEps[e].number === epNum) { found = subEps[e]; break; }
+          }
+          if (!found) { _miruroDone = true; checkRender(); return; }
+          var bxhr = new XMLHttpRequest();
+          bxhr.open("GET", MIRURO_API + "/" + found.id, true);
+          bxhr.onload = function() {
+            if (bxhr.status !== 200) { _miruroDone = true; checkRender(); return; }
+            try {
+              var bData = JSON.parse(bxhr.responseText);
+              var streams = bData.streams || [];
+              for (var s = 0; s < streams.length; s++) {
+                var url = streams[s].url;
+                if (url.indexOf(".m3u8") === -1 && url.indexOf(".mp4") === -1) continue;
+                var proxied = PROXY_BASE + "?url=" + encodeURIComponent(url) + "&referer=" + encodeURIComponent("https://www.miruro.tv/");
+                addSource({
+                  url: proxied,
+                  type: streams[s].url.indexOf(".mp4") > -1 ? "mp4" : "hls",
+                  quality: streams[s].quality || "HD",
+                  _provider: "Kiwi"
+                });
+              }
+              if (bData.subtitles) addTracks(bData.subtitles);
+            } catch (e) {}
+            _miruroDone = true;
+            checkRender();
+          };
+          bxhr.onerror = function() { _miruroDone = true; checkRender(); };
+          bxhr.send();
+        } catch (e) { _miruroDone = true; checkRender(); }
+      };
+      mxhr.onerror = function() { _miruroDone = true; checkRender(); };
+      mxhr.send();
+    })(num);
+  } else {
+    _miruroDone = true;
   }
 }
 
