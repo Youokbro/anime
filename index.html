@@ -687,6 +687,7 @@ function showAnilistDetail(media) {
   html += '</div>';
   html += '<div class="detail-right">';
   if (desc) html += '<div class="detail-desc">' + desc + '</div>';
+  html += '<div id="detail-ids" style="font-size:11px;color:#555;margin-top:4px"></div>';
   html += '</div></div>';
   html += '<div class="section-title" style="padding-left:12px">Episodes</div><div id="season-tabs"></div><div id="ep-list"><div class="loading">Loading episodes...</div></div><div id="anilist-status"></div>';
   html += '</div></div>';
@@ -766,6 +767,13 @@ function loadExternalIds(mediaId) {
       if (m) { CURRENT_TMDB_ID = m[1]; }
       var m2 = url.match(/imdb\.com\/title\/(tt\d+)/i);
       if (m2) { CURRENT_IMDB_ID = m2[1]; }
+    }
+    var idEl = document.getElementById("detail-ids");
+    if (idEl) {
+      var parts = [];
+      if (CURRENT_TMDB_ID) parts.push("TMDB: " + CURRENT_TMDB_ID);
+      if (CURRENT_IMDB_ID) parts.push("IMDb: " + CURRENT_IMDB_ID);
+      if (parts.length) idEl.innerHTML = parts.join(" &bull; ");
     }
   });
 }
