@@ -545,12 +545,16 @@ function openDetail(id) {
     CURRENT_ANIME_TITLE = title;
     CURRENT_ANIME_ROMAJI = (info.title && info.title.romaji) || title;
     var desc = (info.description || "").replace(/<[^>]*>/g, "");
-    var html = '';
-    if (img) html += '<div class="banner"><img src="' + img + '" alt=""><div class="banner-overlay"><h1>' + title + '</h1></div></div>';
-    else html += '<div class="detail-body"><h1 style="padding:12px;font-size:20px;color:#38bdf8">' + title + '</h1>';
-    html += '<div class="detail-body">';
+    var html = '<h1 class="detail-title">' + title + '</h1>';
+    html += '<div class="detail-gap"></div>';
+    html += '<div class="detail-top">';
+    html += '<div class="detail-left">';
+    if (img) html += '<img class="detail-cover" src="' + img + '" alt="">';
+    html += '</div>';
+    html += '<div class="detail-right">';
     if (desc) html += '<div class="detail-desc">' + desc + '</div>';
-    html += '<div class="section-title">Episodes</div><div id="ep-list"><div class="loading">Loading episodes...</div></div><div id="anilist-status"></div></div>';
+    html += '</div></div>';
+    html += '<div class="section-title" style="padding-left:12px">Episodes</div><div id="ep-list"><div class="loading">Loading episodes...</div></div><div id="anilist-status"></div>';
     c.innerHTML = html;
     apiGet("/episodes/" + id, function(err2, eps) {
       var el = document.getElementById("ep-list");
