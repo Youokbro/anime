@@ -720,30 +720,37 @@ function playFromDetail(num) {
   var allTracks = [];
   var _ezDone = false;
   var _miruroDone = false;
+  var _failTimeout = null;
+
+  function parseQuality(q) {
+    if (!q) return 720;
+    var m = q.match(/(\d+)/);
+    if (m) return parseInt(m[1], 10);
+    if (q === "HD" || q === "Auto" || q === "?") return 720;
+    return 0;
+  }
 
   function addSource(src) {
     for (var c = 0; c < allSources.length; c++) { if (allSources[c].url === src.url) return; }
+    if (parseQuality(src.quality) < 720) return;
     allSources.push(src);
   }
+
   function addTracks(tracks) {
     if (!tracks) return;
     for (var t = 0; t < tracks.length; t++) { allTracks.push(tracks[t]); }
   }
+
   function renderSources() {
     if (!allSources.length) {
       document.getElementById("player-controls").innerHTML = '<div class="error">All sources failed</div>';
       return;
     }
+    allSources.sort(function(a, b) { return (parseQuality(b.quality) - parseQuality(a.quality)) || ((a._provider || "").localeCompare(b._provider || "")); });
     CURRENT_STREAMS = allSources;
     CURRENT_SUBTITLES = allTracks;
-    var controlsHtml = '<div class="c" style="width:auto"><label>Quality:</label></div><div class="c" style="width:auto">';
-    controlsHtml += '<select id="quality-select" onchange="changeQuality()">';
-    for (var q = 0; q < allSources.length; q++) {
-      var qlabel = allSources[q].quality || "Auto";
-      var typeLabel = allSources[q].type === "mp4" ? "MP4" : "HLS";
-      controlsHtml += '<option value="' + q + '"' + (q === 0 ? " selected" : "") + '>' + qlabel + " (" + typeLabel + ")</option>";
-    }
-    controlsHtml += '</select></div>';
+
+    var controlsHtml = '';
 
     if (allTracks.length) {
       controlsHtml += '<div class="c" style="width:auto"><label>Subs:</label></div><div class="c" style="width:auto">';
@@ -1005,12 +1012,23 @@ function loadStream(stream) {
   var v = document.getElementById("player-video");
   v.pause(); v.src = ""; v.innerHTML = "";
   if (window._hls) { window._hls.destroy(); window._hls = null; }
+  if (_failTimeout) { clearTimeout(_failTimeout); _failTimeout = null; }
 
   var url = stream.url;
   v.crossOrigin = "anonymous";
 
+  _failTimeout = setTimeout(function() { tryNextStream(stream, "timeout"); }, 12000);
+
+  var gotData = false;
+  v.addEventListener("loadeddata", function() {
+    if (!gotData) { gotData = true; if (_failTimeout) { clearTimeout(_failTimeout); _failTimeout = null; } }
+  }, { once: true });
+  v.addEventListener("playing", function() {
+    if (_failTimeout) { clearTimeout(_failTimeout); _failTimeout = null; }
+  }, { once: true });
+
   if (url.indexOf(".mp4") > -1 || stream.type === "mp4") {
-    v.onerror = function() { v.onerror = null; v.src = ""; tryNextStream(stream); };
+    v.onerror = function() { if (_failTimeout) { clearTimeout(_failTimeout); _failTimeout = null; } v.onerror = null; v.src = ""; tryNextStream(stream, "error"); };
     v.src = url; v.load();
   } else if (v.canPlayType("application/vnd.apple.mpegurl")) {
     v.src = url; v.load();
@@ -1018,8 +1036,9 @@ function loadStream(stream) {
     var hls = new window.Hls(); window._hls = hls;
     hls.on(Hls.Events.ERROR, function(ev, data) {
       if (data.fatal) {
+        if (_failTimeout) { clearTimeout(_failTimeout); _failTimeout = null; }
         hls.destroy(); window._hls = null;
-        tryNextStream(stream);
+        tryNextStream(stream, "hls_error");
       }
     });
     hls.loadSource(url); hls.attachMedia(v);
@@ -1028,18 +1047,24 @@ function loadStream(stream) {
   }
 }
 
-function tryNextStream(current) {
+function tryNextStream(current, reason) {
   var idx = -1;
   for (var i = 0; i < CURRENT_STREAMS.length; i++) {
     if (CURRENT_STREAMS[i] === current) { idx = i; break; }
   }
   if (idx >= 0 && idx + 1 < CURRENT_STREAMS.length) {
     var sel = document.getElementById("server-select");
-    if (sel && sel.options) sel.selectedIndex = idx + 1;
+    if (sel && sel.options) {
+      sel.selectedIndex = idx + 1;
+      sel.style.color = "#f44";
+    }
     var next = CURRENT_STREAMS[idx + 1];
+    var pname = next._provider || "Source";
+    var pq = next.quality || "";
+    document.getElementById("player-info").innerHTML += " <span style='color:#f44;font-size:11px'>→ " + pname + (pq ? " " + pq : "") + "</span>";
     loadStream(next);
   } else {
-    document.getElementById("player-controls").innerHTML += "<br><span class=\"error\">Try another server above</span>";
+    document.getElementById("player-controls").innerHTML += "<br><span class=\"error\">All servers failed</span>";
   }
 }
 
