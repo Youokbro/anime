@@ -146,6 +146,7 @@ input,button{font-size:16px}
 var CURRENT_STREAMS = [];
 var CURRENT_SUBTITLES = [];
 var _failTimeout = null;
+var _episodeCache = {};
 var TMDB_KEY = "0ff3dcace998b2fa393607f0af17a6a5";
 var MIRURO_API = "https://miruro-api-navy.vercel.app";
 var PROXY_BASE = "https://anim-proxy.ahaantadi.workers.dev/";
@@ -792,17 +793,13 @@ function playFromDetail(num) {
     }
   }
 
-  // --- Miruro-API providers ---
+  // --- Miruro-API providers (with episode cache) ---
   if (CURRENT_ANIME_ANILIST_ID) {
     _noRequests = false;
     _pending++;
     (function(epNum) {
-      var mxhr = new XMLHttpRequest();
-      mxhr.open("GET", MIRURO_API + "/episodes/" + CURRENT_ANIME_ANILIST_ID, true);
-      mxhr.onload = function() {
-        if (mxhr.status !== 200) { oneDone(); return; }
+      function processEpData(epData) {
         try {
-          var epData = JSON.parse(mxhr.responseText);
           var provNames = ["kiwi", "ally", "bonk", "moo", "bee"];
           for (var pi = 0; pi < provNames.length; pi++) {
             (function(provName) {
@@ -845,11 +842,27 @@ function playFromDetail(num) {
               bxhr.send();
             })(provNames[pi]);
           }
-        } catch (e) {}
+          } catch (e) {}
         oneDone();
-      };
-      mxhr.onerror = function() { oneDone(); };
-      mxhr.send();
+      }
+      var cached = _episodeCache[CURRENT_ANIME_ANILIST_ID];
+      if (cached) {
+        processEpData(cached);
+      } else {
+        var mxhr = new XMLHttpRequest();
+        mxhr.open("GET", MIRURO_API + "/episodes/" + CURRENT_ANIME_ANILIST_ID, true);
+        mxhr.onload = function() {
+          if (mxhr.status === 200) {
+            try {
+              var epData = JSON.parse(mxhr.responseText);
+              _episodeCache[CURRENT_ANIME_ANILIST_ID] = epData;
+              processEpData(epData);
+            } catch (e) { oneDone(); }
+          } else { oneDone(); }
+        };
+        mxhr.onerror = function() { oneDone(); };
+        mxhr.send();
+      }
     })(num);
   }
 
@@ -1070,7 +1083,7 @@ function loadStream(stream) {
   var url = stream.url;
   v.crossOrigin = "anonymous";
 
-  _failTimeout = setTimeout(function() { tryNextStream(stream, "timeout"); }, 12000);
+  _failTimeout = setTimeout(function() { tryNextStream(stream, "timeout"); }, 5000);
 
   var gotData = false;
   v.addEventListener("loadeddata", function() {
