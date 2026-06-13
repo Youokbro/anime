@@ -956,22 +956,25 @@ function playEpisode(num) {
     }
     // 1b. ezvidapi — direct HLS via TMDB ID
     if (CURRENT_TMDB_ID) {
-      (function(tmdbEp) {
-        var ezxhr = new XMLHttpRequest();
-        ezxhr.open("GET", "https://api.ezvidapi.com/tv/vidlink/" + CURRENT_TMDB_ID + "?season=1&episode=" + tmdbEp);
-        ezxhr.onload = function() {
-          if (ezxhr.status === 200) {
-            try {
-              var ezdata = JSON.parse(ezxhr.responseText);
-              if (ezdata.stream_url) {
-                addSource({ url: ezdata.stream_url, type: "hls", quality: "HD", _provider: "EzVidLink" });
-                if (ezdata.subtitles) addTracks(ezdata.subtitles);
-              }
-            } catch (e) {}
-          }
-        };
-        ezxhr.send();
-      })(num);
+      var EZ_PROVIDERS = ["vidlink", "vidnest", "vidrock"];
+      for (var ezi = 0; ezi < EZ_PROVIDERS.length; ezi++) {
+        (function(tmdbEp, ezProv) {
+          var ezxhr = new XMLHttpRequest();
+          ezxhr.open("GET", "https://api.ezvidapi.com/tv/" + ezProv + "/" + CURRENT_TMDB_ID + "?season=1&episode=" + tmdbEp);
+          ezxhr.onload = function() {
+            if (ezxhr.status === 200) {
+              try {
+                var ezdata = JSON.parse(ezxhr.responseText);
+                if (ezdata.stream_url) {
+                  addSource({ url: ezdata.stream_url, type: "hls", quality: "HD", _provider: "Ez" + ezProv.charAt(0).toUpperCase() + ezProv.slice(1) });
+                  if (ezdata.subtitles) addTracks(ezdata.subtitles);
+                }
+              } catch (e) {}
+            }
+          };
+          ezxhr.send();
+        })(num, EZ_PROVIDERS[ezi]);
+      }
     }
     // 2. Consumet _all=1 — search if needed
     if (!HIANIME_ID) {
