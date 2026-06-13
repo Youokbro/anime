@@ -957,7 +957,7 @@ function loadStream(stream) {
         tryNextStream(stream);
       }
     });
-    hls.loadSource(proxyUrl); hls.attachMedia(v);
+    hls.loadSource(url); hls.attachMedia(v);
   } else {
     document.getElementById("player-controls").innerHTML = '<span class="error">HLS not supported in this browser</span>';
   }
