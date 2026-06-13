@@ -176,6 +176,14 @@ function checkAnilistToken() {
   anilistRefresh();
 }
 
+function anilistPasteToken() {
+  var inp = document.getElementById("token-input");
+  if (!inp || !inp.value.trim()) return;
+  ANILIST_TOKEN = inp.value.trim();
+  localStorage.setItem("anilist_token", ANILIST_TOKEN);
+  anilistRefresh();
+}
+
 function anilistLogin() {
   var redirect = encodeURIComponent(window.location.origin + window.location.pathname.replace(/\/$/, ""));
   window.location.href = "https://anilist.co/api/v2/oauth/authorize?client_id=" + ANILIST_CLIENT_ID + "&redirect_uri=" + redirect + "&response_type=token";
@@ -205,7 +213,10 @@ function anilistGraphQL(query, vars, cb) {
 function anilistRefresh() {
   var nav = document.getElementById("anilist-nav");
   if (!nav) return;
-  if (!ANILIST_TOKEN) { nav.innerHTML = '<a class="login-btn" href="javascript:anilistLogin()">Login</a>'; return; }
+  if (!ANILIST_TOKEN) {
+    nav.innerHTML = '<a class="login-btn" href="javascript:anilistLogin()">Login</a> <input id="token-input" type="text" placeholder="Paste token" style="width:70px;padding:3px 5px;background:#111;border:1px solid #333;border-radius:3px;color:#eee;font-size:10px;vertical-align:middle"> <button onclick="anilistPasteToken()" style="padding:3px 6px;background:#38bdf8;color:#000;border:none;border-radius:3px;cursor:pointer;font-size:10px">Set</button>';
+    return;
+  }
   nav.innerHTML = '<span class="loading" style="font-size:11px;color:#888">Loading...</span>';
   anilistGraphQL("query { Viewer { id name avatar { large } } }", {}, function(err, data) {
     if (err || !data || !data.Viewer) {
