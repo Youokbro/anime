@@ -214,7 +214,7 @@ function anilistRefresh() {
   var nav = document.getElementById("anilist-nav");
   if (!nav) return;
   if (!ANILIST_TOKEN) {
-    nav.innerHTML = '<a class="login-btn" href="javascript:anilistLogin()">Login</a> <input id="token-input" type="text" placeholder="Paste token" style="width:70px;padding:3px 5px;background:#111;border:1px solid #333;border-radius:3px;color:#eee;font-size:10px;vertical-align:middle"> <button onclick="anilistPasteToken()" style="padding:3px 6px;background:#38bdf8;color:#000;border:none;border-radius:3px;cursor:pointer;font-size:10px">Set</button>';
+    nav.innerHTML = '<a class="login-btn" href="https://anilist.co/api/v2/oauth/authorize?client_id=43388&redirect_uri=https%3A%2F%2Fyouokbro.github.io%2Fanime&response_type=token">Login</a> <input id="token-input" type="text" placeholder="Paste token" style="width:70px;padding:3px 5px;background:#111;border:1px solid #333;border-radius:3px;color:#eee;font-size:10px;vertical-align:middle"> <button onclick="anilistPasteToken()" style="padding:3px 6px;background:#38bdf8;color:#000;border:none;border-radius:3px;cursor:pointer;font-size:10px">Set</button>';
     return;
   }
   nav.innerHTML = '<span class="loading" style="font-size:11px;color:#888">Loading...</span>';
@@ -222,7 +222,7 @@ function anilistRefresh() {
     if (err || !data || !data.Viewer) {
       if (err === 401) {
         ANILIST_TOKEN = ""; localStorage.removeItem("anilist_token");
-        nav.innerHTML = '<a class="login-btn" href="javascript:anilistLogin()">Login</a>';
+        nav.innerHTML = '<a class="login-btn" href="https://anilist.co/api/v2/oauth/authorize?client_id=43388&redirect_uri=https%3A%2F%2Fyouokbro.github.io%2Fanime&response_type=token">Login</a> <input id="token-input" type="text" placeholder="Paste token" style="width:70px;padding:3px 5px;background:#111;border:1px solid #333;border-radius:3px;color:#eee;font-size:10px;vertical-align:middle"> <button onclick="anilistPasteToken()" style="padding:3px 6px;background:#38bdf8;color:#000;border:none;border-radius:3px;cursor:pointer;font-size:10px">Set</button>';
       } else {
         nav.innerHTML = '<span style="font-size:11px;color:#888">Retry...</span>';
         setTimeout(function() { anilistRefresh(); }, 3000);
