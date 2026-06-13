@@ -795,73 +795,7 @@ function playFromDetail(num) {
       })(num, EZ_PROVIDERS[ezi]);
     }
   } else {
-    setTimeout(function() { renderSources(); }, 8000);
-  }
-
-  // --- Miruro-API sources (AniList-based) ---
-  if (CURRENT_ANIME_ANILIST_ID) {
-    (function(epNum) {
-      var mxhr = new XMLHttpRequest();
-      mxhr.open("GET", MIRURO_API + "/episodes/" + CURRENT_ANIME_ANILIST_ID, true);
-      mxhr.onload = function() {
-        if (mxhr.status !== 200) return;
-        try {
-          var epData = JSON.parse(mxhr.responseText);
-          var providers = epData.providers || {};
-          var provNames = Object.keys(providers);
-          var foundEps = [];
-          for (var p = 0; p < provNames.length; p++) {
-            var prov = providers[provNames[p]];
-            var eps = prov.episodes || {};
-            var subEps = eps.sub || [];
-            for (var e = 0; e < subEps.length; e++) {
-              if (subEps[e].number === epNum) {
-                foundEps.push({ provider: provNames[p], id: subEps[e].id });
-                break;
-              }
-            }
-          }
-          if (!foundEps.length) return;
-          var miruroLoaded = 0;
-          for (var f = 0; f < foundEps.length; f++) {
-            (function(fep) {
-              var sxhr = new XMLHttpRequest();
-              sxhr.open("GET", MIRURO_API + "/" + fep.id, true);
-              sxhr.onload = function() {
-                if (sxhr.status === 200) {
-                  try {
-                    var sData = JSON.parse(sxhr.responseText);
-                    var streams = sData.streams || [];
-                    for (var s = 0; s < streams.length; s++) {
-                      var url = streams[s].url;
-                      if (url.indexOf("kwik.cx") > -1) continue;
-                      addSource({
-                        url: url,
-                        type: streams[s].type || "hls",
-                        quality: streams[s].quality || "Auto",
-                        _provider: fep.provider.charAt(0).toUpperCase() + fep.provider.slice(1)
-                      });
-                    }
-                    if (sData.subtitles) addTracks(sData.subtitles);
-                    if (sData.intro && sData.intro.start != null && !_skipTimes) {
-                      _skipTimes = {};
-                      _skipTimes.op = { startTime: sData.intro.start, endTime: sData.intro.end || 90 };
-                      setupSkipDetection();
-                    }
-                  } catch (e) {}
-                }
-                miruroLoaded++;
-                if (miruroLoaded === foundEps.length) renderSources();
-              };
-              sxhr.onerror = function() { miruroLoaded++; if (miruroLoaded === foundEps.length) renderSources(); };
-              sxhr.send();
-            })(foundEps[f]);
-          }
-        } catch (e) {}
-      };
-      mxhr.onerror = function() {};
-      mxhr.send();
-    })(num);
+    setTimeout(function() { renderSources(); }, 1000);
   }
 }
 
