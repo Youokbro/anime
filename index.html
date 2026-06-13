@@ -281,7 +281,9 @@ function loadAnilistSections() {
         var t = m.title ? (m.title.english || m.title.romaji || "") : "";
         var ep = m.episodes || "?";
         var prog = e.progress || 0;
-        html += '<td><div class="poster-card" onclick="openDetail(' + m.id + ')">';
+        var cardIdx = _homeCardData.length;
+        _homeCardData.push({ id: m.id, title: t, anilistId: m.id });
+        html += '<td><div class="poster-card" onclick="openHomeCard(' + cardIdx + ')">';
         if (img) html += '<img src="' + img + '" alt="" onerror="this.style.display=\"none\"">';
         else html += '<div style="height:140px;background:#111"></div>';
         html += '<div class="label">' + t + '</div>';
@@ -350,13 +352,16 @@ function getImg(i) {
   return i.image || i.cover || i.poster || "";
 }
 
+var _homeCardData = [];
+
 function buildSection(title, data) {
   var r = data.results || [];
   if (!r.length) return "";
   var h = '<div class="section-title">' + title + '</div><div class="card-table"><table><tr>';
   for (var i = 0; i < r.length; i++) {
-    var id = r[i].id || 0;
-    h += '<td><div class="poster-card" onclick="openDetail(' + id + ')">';
+    var idx = _homeCardData.length;
+    _homeCardData.push({ id: r[i].id, title: getTitle(r[i]) });
+    h += '<td><div class="poster-card" onclick="openHomeCard(' + idx + ')">';
     h += '<img src="' + getImg(r[i]) + '" alt="" onerror="this.style.display=\'none\'">';
     h += '<div class="label">' + getTitle(r[i]) + '</div></div></td>';
     if ((i + 1) % 4 === 0 && i < r.length - 1) h += '</tr><tr>';
@@ -484,6 +489,28 @@ function openHomeResult(idx) {
   });
 }
 
+function openHomeCard(idx) {
+  var d = _homeCardData[idx];
+  if (!d) return;
+  if (d.anilistId) {
+    // Search AniList for full media object to show season tabs
+    CURRENT_ANIME_ANILIST_ID = d.anilistId;
+    anilistGraphQL("query ($id: Int) { Media(id: $id) { id title { romaji english } coverImage { extraLarge large } description } }", { id: d.anilistId }, function(err, data) {
+      if (!err && data && data.Media) {
+        showAnilistDetail(data.Media);
+      } else {
+        CURRENT_ANIME_TITLE = d.title;
+        CURRENT_ANIME_ROMAJI = "";
+        openDetail(d.id);
+      }
+    });
+  } else {
+    CURRENT_ANIME_TITLE = d.title;
+    CURRENT_ANIME_ROMAJI = "";
+    openDetail(d.id);
+  }
+}
+
 function openExternalResult(title) {
   var c = document.getElementById("detail-content");
   c.innerHTML = '<div class="loading">Looking for streams...</div>';
@@ -542,110 +569,42 @@ function openDetail(id) {
   c.innerHTML = '<div class="loading">Loading...</div>';
   CURRENT_EPISODES = [];
   CURRENT_EPISODES_MAP = {};
-  apiGet("/info/" + id, function(err, info) {
-    if (err) { c.innerHTML = '<div class="error">' + err + '</div>'; return; }
-    var img = getImg(info);
-    var title = getTitle(info);
-    CURRENT_ANIME_TITLE = title;
-    CURRENT_ANIME_ROMAJI = (info.title && info.title.romaji) || title;
-    var desc = (info.description || "").replace(/<[^>]*>/g, "");
-    var html = '<h1 class="detail-title">' + title + '</h1>';
-    html += '<div class="detail-gap"></div>';
-    html += '<div class="detail-top">';
-    html += '<div class="detail-left">';
-    if (img) html += '<img class="detail-cover" src="' + img + '" alt="">';
-    html += '</div>';
-    html += '<div class="detail-right">';
-    if (desc) html += '<div class="detail-desc">' + desc + '</div>';
-    html += '</div></div>';
-    html += '<div class="section-title" style="padding-left:12px">Episodes</div><div id="ep-list"><div class="loading">Loading episodes...</div></div><div id="anilist-status"></div>';
-    c.innerHTML = html;
-    if (CURRENT_ANIME_ANILIST_ID) loadExternalIds(CURRENT_ANIME_ANILIST_ID);
-    apiGet("/episodes/" + id, function(err2, eps) {
-      var el = document.getElementById("ep-list");
-      if (err2) { loadHianimeEpisodes(); return; }
-      var provs = eps.providers || {};
-      // Merge episodes from ALL providers by number
-      var flat = [];
-      var byNum = {};
-      for (var o = PROVIDERS.length - 1; o >= 0; o--) {
-        var p = PROVIDERS[o];
-        if (!provs[p] || !provs[p].episodes) continue;
-        var cats = provs[p].episodes;
-        for (var cat in cats) {
-          var list = cats[cat];
-          if (!list || !list.length) continue;
-          for (var k = 0; k < list.length; k++) {
-            var ep = list[k];
-            var num = ep.number || (k + 1);
-            if (!byNum[num]) {
-              ep._provider = p;
-              ep._category = cat;
-              ep._epNum = num;
-              byNum[num] = ep;
-            }
-          }
-        }
+  CURRENT_HIANIME_EPS = [];
+  HIANIME_ID = "";
+  // Try Consumet directly (Miruro is dead)
+  var html = '<h1 class="detail-title">' + (CURRENT_ANIME_TITLE || "Loading...") + '</h1>';
+  html += '<div class="detail-gap"></div>';
+  html += '<div id="detail-ids" style="font-size:11px;color:#555;margin-top:4px;padding:0 12px"></div>';
+  html += '<div id="season-tabs"></div>';
+  html += '<div class="section-title" style="padding-left:12px">Episodes</div>';
+  html += '<div id="ep-list"><div class="loading">Loading episodes...</div></div>';
+  html += '<div id="anilist-status"></div>';
+  c.innerHTML = html;
+  if (CURRENT_ANIME_ANILIST_ID) {
+    loadSeasonRelations(CURRENT_ANIME_ANILIST_ID);
+    loadExternalIds(CURRENT_ANIME_ANILIST_ID);
+  }
+  var tryTitle = CURRENT_ANIME_TITLE || "";
+  if (tryTitle) {
+    doConsumetSearch(tryTitle, function() {
+      if (CURRENT_ANIME_ROMAJI && CURRENT_ANIME_ROMAJI !== tryTitle) {
+        doConsumetSearch(CURRENT_ANIME_ROMAJI, function() {
+          document.getElementById("ep-list").innerHTML = '<div class="error">No episodes found</div>';
+        });
+      } else {
+        document.getElementById("ep-list").innerHTML = '<div class="error">No episodes found</div>';
       }
-      var epProvs = {};
-      for (var o = PROVIDERS.length - 1; o >= 0; o--) {
-        var p = PROVIDERS[o];
-        if (!provs[p] || !provs[p].episodes) continue;
-        var cats = provs[p].episodes;
-        for (var cat in cats) {
-          var list = cats[cat];
-          if (!list || !list.length) continue;
-          for (var k = 0; k < list.length; k++) {
-            var ep = list[k];
-            var num = ep.number || (k + 1);
-            if (!epProvs[num]) epProvs[num] = [];
-            epProvs[num].push({ provider: p, id: ep.id || '', category: cat, number: num });
-          }
-        }
-      }
-      CURRENT_EP_PROVIDERS = epProvs;
-      for (var n in byNum) flat.push(byNum[n]);
-      flat.sort(function(a, b) { return a._epNum - b._epNum; });
-
-      if (!flat.length) { el.innerHTML = '<div class="error">No episodes</div>'; return; }
-      CURRENT_EPISODES = flat;
-      CURRENT_EPISODES_MAP = byNum;
-      var tbl = '<table class="episode-table"><tr><th>#</th><th>Title</th><th>Aired</th></tr>';
-      for (var i = 0; i < flat.length; i++) {
-        var ep = flat[i];
-        var num = ep._epNum;
-        var ttl = ep.title || "Episode " + num;
-        var aired = ep.airDate || ep.releaseDate || "-";
-        var eid = ep.id || "";
-        tbl += '<tr onclick="playEpisode(' + num + ')">';
-        tbl += '<td>' + num + '</td><td>' + ttl + '</td><td>' + aired + '</td></tr>';
-      }
-      el.innerHTML = tbl + '</table>';
-      // background search Consumet for AnimeSaturn server option
-      (function() {
-        var sq = CURRENT_ANIME_TITLE;
-        (function tryCS(q) {
-          consumetGet("/search?q=" + encodeURIComponent(q), function(e, d) {
-            if (d && d.results && d.results.length) {
-              HIANIME_ID = d.results[0].id;
-              CURRENT_PROVIDER = d._provider || "AnimeSaturn";
-              consumetGet("/info?id=" + HIANIME_ID + "&provider=" + CURRENT_PROVIDER, function(e2, ci) {
-                if (ci && ci.episodes) CURRENT_HIANIME_EPS = ci.episodes;
-              });
-            } else if (CURRENT_ANIME_ROMAJI && q !== CURRENT_ANIME_ROMAJI) {
-              tryCS(CURRENT_ANIME_ROMAJI);
-            }
-          });
-        })(sq);
-      })();
     });
-  });
+  }
 }
 
 function openAnilistResult(idx) {
   var media = _lastAnilistSearch[idx];
   if (!media) return;
-  var title = getTitle(media);
+  CURRENT_ANIME_ANILIST_ID = media.id;
+  CURRENT_ANIME_TITLE = getTitle(media);
+  CURRENT_ANIME_ROMAJI = (media.title && media.title.romaji) || CURRENT_ANIME_TITLE;
+  var title = CURRENT_ANIME_TITLE;
   var c = document.getElementById("detail-content");
   c.innerHTML = '<div class="loading">Looking for streams...</div>';
   showPage("detail");
@@ -739,12 +698,16 @@ function loadSeasonRelations(mediaId) {
 function switchSeason(idx) {
   var s = _seasonList[idx];
   if (!s) return;
-  document.getElementById("season-tabs").innerHTML = "";
+  // Update title on page
+  var titleEl = document.querySelector(".detail-title");
+  if (titleEl) titleEl.textContent = s.title;
   document.getElementById("ep-list").innerHTML = '<div class="loading">Loading ' + s.label + '...</div>';
   CURRENT_ANIME_TITLE = s.title;
   CURRENT_ANIME_ID = s.id;
+  CURRENT_ANIME_ANILIST_ID = s.id;
   CURRENT_HIANIME_EPS = [];
   HIANIME_ID = "";
+  loadExternalIds(s.id);
   doConsumetSearch(s.title, function() {
     document.getElementById("ep-list").innerHTML = '<div class="error">No episodes for this season</div>';
   });
