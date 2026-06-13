@@ -107,7 +107,7 @@ input,button{font-size:16px}
       <div class="c" style="width:auto"><button onclick="doHomeSearch()">Go</button></div>
     </div>
   </div>
-  <div id="home-sections"><div id="anilist-sections"></div></div>
+  <div id="home-sections"><div id="anilist-sections"></div><div id="catalog-sections"></div></div>
 </div>
 
 <div id="search-page" class="page">
@@ -273,7 +273,7 @@ function loadAnilistSections() {
       }
       html += '</tr></table></div>';
     }
-    if (html) sec.innerHTML = html + (sec.innerHTML || "");
+    if (html) sec.innerHTML = html;
   });
 }
 
@@ -290,7 +290,7 @@ function loadAnilistStatus(mediaId) {
     var html = '<div class="section-title" style="margin-top:8px">AniList Status</div><div class="status-row">';
     for (var i = 0; i < statuses.length; i++) {
       var active = statuses[i] === cur ? ' active' : '';
-      html += '<a class="btn-status' + active + '" href="javascript:saveAnilistStatus(' + mediaId + ',\""' + statuses[i] + '\"")">' + labels[i] + '</a> ';
+      html += '<a class="btn-status' + active + '" href="#" onclick="saveAnilistStatus(' + mediaId + ',\'' + statuses[i] + '\');return false;">' + labels[i] + '</a> ';
     }
     if (entry) html += '<span style="font-size:11px;color:#888;margin-left:8px">Progress: ' + prog + '</span>';
     html += '</div>';
@@ -303,6 +303,20 @@ function saveAnilistStatus(mediaId, status) {
     if (err) { alert("Failed to update AniList"); return; }
     loadAnilistStatus(mediaId);
     loadAnilistSections();
+  });
+}
+
+function saveAnilistProgress(mediaId, episode) {
+  if (!ANILIST_TOKEN || !ANILIST_USER) return;
+  anilistGraphQL("query ($id: Int, $u: Int) { Media(id: $id) { mediaListEntry { id status progress } } }", { id: parseInt(mediaId, 10), u: ANILIST_USER.id }, function(err, data) {
+    if (err || !data || !data.Media) return;
+    var entry = data.Media.mediaListEntry;
+    var curProg = entry ? (entry.progress || 0) : 0;
+    if (episode > curProg) {
+      anilistGraphQL("mutation ($m: Int, $s: MediaListStatus, $p: Int) { SaveMediaListEntry(mediaId: $m, status: $s, progress: $p) { id status progress } }", { m: parseInt(mediaId, 10), s: "CURRENT", p: episode }, function(err2, data2) {
+        if (!err2) { loadAnilistSections(); loadAnilistStatus(mediaId); }
+      });
+    }
   });
 }
 
@@ -350,7 +364,7 @@ function buildSection(title, data) {
 }
 
 function loadHome() {
-  var c = document.getElementById("home-sections");
+  var c = document.getElementById("catalog-sections");
   c.innerHTML = '<div class="loading">Loading...</div>';
   _homeResults = [];
   var queries = [
@@ -614,6 +628,7 @@ function loadTmdbEpisodes(tmdbId, seasonNum) {
 var CURRENT_EPISODE_LIST = [];
 
 function playFromDetail(num) {
+  saveAnilistProgress(CURRENT_ANIME_ANILIST_ID, num);
   document.getElementById("player-video").style.display = "block";
   showPage("player");
   var v = document.getElementById("player-video");
