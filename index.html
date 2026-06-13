@@ -836,7 +836,32 @@ function playFromDetail(num) {
               }
               if (bData.subtitles) addTracks(bData.subtitles);
             } catch (e) {}
-            renderSources();
+            if (!_rendered) { renderSources(); return; }
+            var sel = document.getElementById("server-select");
+            if (sel) {
+              for (var si2 = 0; si2 < allSources.length; si2++) {
+                var src = allSources[si2];
+                var opt = document.createElement("option");
+                opt.value = si2;
+                opt.textContent = src._provider + (src.quality ? " (" + src.quality + ")" : "");
+                sel.appendChild(opt);
+              }
+              if (CURRENT_SUBTITLES.length) {
+                var subSel = document.querySelector("#player-controls select[onchange*='changeSub']");
+                if (!subSel) {
+                  var pc = document.getElementById("player-controls");
+                  var subDiv = document.createElement("div");
+                  subDiv.className = "c";
+                  subDiv.style.cssText = "width:auto";
+                  subDiv.innerHTML = '<label>Subs:</label></div><div class="c" style="width:auto"><select onchange="changeSub(this.value)"><option value="">None</option>';
+                  for (var st = 0; st < CURRENT_SUBTITLES.length; st++) {
+                    subDiv.innerHTML += '<option value="' + st + '">' + (CURRENT_SUBTITLES[st].label || "Track " + (st+1)) + "</option>";
+                  }
+                  subDiv.innerHTML += '</select>';
+                  pc.appendChild(subDiv);
+                }
+              }
+            }
           };
           bxhr.onerror = function() {};
           bxhr.send();
