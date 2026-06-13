@@ -34,13 +34,13 @@ input,button{font-size:16px}
 .poster-card .label{padding:6px 4px;font-size:11px;color:#ccc;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 
 .detail-title{font-size:18px;color:#38bdf8;padding:12px 12px 0;margin:0}
+.detail-gap{height:12px}
 .detail-desc{color:#aaa;font-size:13px;line-height:1.5;margin-bottom:12px}
 .detail-cover{width:100%;display:block;border-radius:4px;margin-bottom:10px}
 
 .detail-split{display:table;width:100%}
 .detail-left{display:table-cell;width:35%;vertical-align:top;padding:12px}
 .detail-right{display:table-cell;width:65%;vertical-align:top;padding:12px 12px 12px 0}
-.detail-left .detail-desc{margin-bottom:0}
 
 @media (max-width:767px){
 .detail-split,.detail-left,.detail-right{display:block;width:auto}
@@ -671,12 +671,13 @@ function showAnilistDetail(media) {
   var title = getTitle(media);
   var desc = (media.description || "").replace(/<[^>]*>/g, "");
   var html = '<h1 class="detail-title">' + title + '</h1>';
+  html += '<div class="detail-gap"></div>';
   html += '<div class="detail-split">';
   html += '<div class="detail-left">';
   if (img) html += '<img class="detail-cover" src="' + img + '" alt="">';
-  if (desc) html += '<div class="detail-desc">' + desc + '</div>';
   html += '</div>';
   html += '<div class="detail-right">';
+  if (desc) html += '<div class="detail-desc">' + desc + '</div>';
   html += '<div class="section-title">Episodes</div><div id="season-tabs"></div><div id="ep-list"><div class="loading">Loading episodes...</div></div><div id="anilist-status"></div>';
   html += '</div></div>';
   c.innerHTML = html;
