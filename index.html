@@ -155,6 +155,7 @@ var CURRENT_EP_PROVIDERS = {};
 var CURRENT_SUBTITLES = [];
 var CURRENT_REFERER = "";
 var CURRENT_ANIME_ID = 0;
+var CURRENT_ANIME_ANILIST_ID = 0;
 var CURRENT_ANIME_TITLE = "";
 var CURRENT_ANIME_ROMAJI = "";
 var CURRENT_HIANIME_EPS = []; // hiAnime episode fallback data
@@ -459,6 +460,7 @@ function loadHome() {
 function openHomeResult(idx) {
   var media = _homeResults[idx];
   if (!media) return;
+  CURRENT_ANIME_ANILIST_ID = media.id || 0;
   var title = getTitle(media);
   var c = document.getElementById("detail-content");
   c.innerHTML = '<div class="loading">Looking for streams...</div>';
@@ -532,6 +534,7 @@ function doSearch() {
 
 function openDetail(id) {
   CURRENT_ANIME_ID = id;
+  if (!CURRENT_ANIME_ANILIST_ID) CURRENT_ANIME_ANILIST_ID = id;
   _lastPage = "detail";
   showPage("detail");
   var c = document.getElementById("detail-content");
@@ -556,6 +559,7 @@ function openDetail(id) {
     html += '</div></div>';
     html += '<div class="section-title" style="padding-left:12px">Episodes</div><div id="ep-list"><div class="loading">Loading episodes...</div></div><div id="anilist-status"></div>';
     c.innerHTML = html;
+    if (CURRENT_ANIME_ANILIST_ID) loadExternalIds(CURRENT_ANIME_ANILIST_ID);
     apiGet("/episodes/" + id, function(err2, eps) {
       var el = document.getElementById("ep-list");
       if (err2) { loadHianimeEpisodes(); return; }
@@ -664,6 +668,7 @@ function openAnilistResult(idx) {
 
 function showAnilistDetail(media) {
   CURRENT_ANIME_ID = media.id;
+  CURRENT_ANIME_ANILIST_ID = media.id;
   CURRENT_ANIME_TITLE = getTitle(media);
   CURRENT_ANIME_ROMAJI = (media.title && media.title.romaji) || CURRENT_ANIME_TITLE;
   CURRENT_HIANIME_EPS = [];
@@ -1170,6 +1175,19 @@ function playHianimeEpisode(num) {
       controlsHtml += '</select></div>';
     }
     controlsEl.innerHTML = controlsHtml;
+
+    if (CURRENT_TMDB_ID || CURRENT_IMDB_ID) {
+      var embHtml = '<div class="c" style="width:auto"><label>Embed:</label></div><div class="c" style="width:auto">';
+      embHtml += '<select id="embed-select" onchange="switchEmbed(' + num + ')">';
+      embHtml += '<option value="">None</option>';
+      if (CURRENT_TMDB_ID) {
+        embHtml += '<option value="vidsrc">Vidsrc</option>';
+        embHtml += '<option value="2embed">2Embed</option>';
+        embHtml += '<option value="multiembed">MultiEmbed</option>';
+      }
+      embHtml += '</select></div>';
+      controlsEl.innerHTML += embHtml;
+    }
 
     streamHiVideo(first);
   });
