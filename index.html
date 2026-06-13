@@ -149,6 +149,7 @@ var _failTimeout = null;
 var _episodeCache = {};
 var _currentSubIdx = -1;
 var TMDB_KEY = "0ff3dcace998b2fa393607f0af17a6a5";
+var OPENSUBTITLES_KEY = "";
 var MIRURO_API = "https://miruro-api-navy.vercel.app";
 var PROXY_BASE = "https://anim-proxy.ahaantadi.workers.dev/";
 var CURRENT_ANIME_ID = 0;
@@ -868,6 +869,61 @@ function playFromDetail(num) {
     })(num);
   }
 
+  // --- OpenSubtitles fallback subs ---
+  if (OPENSUBTITLES_KEY && CURRENT_TMDB_ID) {
+    _pending++;
+    (function(epNum, tmdbId, season) {
+      var osx = new XMLHttpRequest();
+      osx.open("GET", "https://api.opensubtitles.com/api/v1/subtitles?tmdb_id=" + tmdbId + "&season_number=" + season + "&episode_number=" + epNum + "&languages=en&order_by=download_count&order_direction=desc", true);
+      osx.setRequestHeader("Api-Key", OPENSUBTITLES_KEY);
+      osx.setRequestHeader("User-Agent", "AnimeStream v1.0");
+      osx.onload = function() {
+        if (osx.status === 200) {
+          try {
+            var osd = JSON.parse(osx.responseText);
+            var list = osd.data || [];
+            if (list.length) {
+              var best = list[0];
+              for (var oi = 0; oi < list.length; oi++) {
+                var a = list[oi].attributes || {};
+                if (a.subtitle_format === "vtt") { best = list[oi]; break; }
+              }
+              var attrs = best.attributes || {};
+              var files = attrs.files || [];
+              var fileId = files.length ? (files[0].file_id || 0) : 0;
+              if (fileId) {
+                _pending++;
+                var dlx = new XMLHttpRequest();
+                dlx.open("POST", "https://api.opensubtitles.com/api/v1/download", true);
+                dlx.setRequestHeader("Content-Type", "application/json");
+                dlx.setRequestHeader("Api-Key", OPENSUBTITLES_KEY);
+                dlx.setRequestHeader("User-Agent", "AnimeStream v1.0");
+                dlx.onload = function() {
+                  if (dlx.status === 200) {
+                    try {
+                      var dl = JSON.parse(dlx.responseText);
+                      if (dl.link) {
+                        allTracks.push({ file: dl.link, label: "OpenSubtitles (" + (attrs.language || "en") + ")" });
+                        updateSubsDropdown();
+                      }
+                    } catch(e) {}
+                  }
+                  oneDone();
+                };
+                dlx.onerror = function() { oneDone(); };
+                dlx.send(JSON.stringify({ file_id: fileId }));
+                oneDone(); return;
+              }
+            }
+          } catch(e) {}
+        }
+        oneDone();
+      };
+      osx.onerror = function() { oneDone(); };
+      osx.send();
+    })(num, CURRENT_TMDB_ID, CURRENT_SEASON);
+  }
+
   if (_noRequests) {
     document.getElementById("player-controls").innerHTML = '<div class="error">No TMDB or AniList ID available</div>';
     return;
@@ -937,6 +993,20 @@ function playFromDetail(num) {
     } else if (ci) {
       ci.parentNode.removeChild(ci);
     }
+  }
+
+  function updateSubsDropdown() {
+    CURRENT_SUBTITLES = allTracks;
+    var ss = document.getElementById("sub-select");
+    if (!ss) return;
+    var cur = ss.value;
+    var html = '<option value="">None</option>';
+    for (var si = 0; si < allTracks.length; si++) {
+      html += '<option value="' + si + '">' + (allTracks[si].label || "Track " + (si + 1)) + "</option>";
+    }
+    ss.innerHTML = html;
+    if (cur && parseInt(cur, 10) < allTracks.length) { ss.value = cur; }
+    else { _currentSubIdx = -1; applySubs(); }
   }
 }
 
