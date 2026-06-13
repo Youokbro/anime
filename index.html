@@ -370,6 +370,12 @@ function loadHome() {
     { t: "Popular", q: "{ Page(page: 1, perPage: 20) { media(sort: POPULARITY_DESC, type: ANIME) { id title { romaji english } coverImage { extraLarge } } } }" }
   ];
   var loaded = 0;
+  var total = 3; // AniList + MAL + Kitsu
+  function checkDone() {
+    loaded++;
+    if (loaded >= total && html) c.innerHTML = html;
+    else if (loaded >= total) c.innerHTML = html || '<div class="error">Failed to load catalogs</div>';
+  }
   var html = "";
   for (var i = 0; i < queries.length; i++) {
     (function(idx) {
@@ -391,10 +397,64 @@ function loadHome() {
           }
           html += h + '</tr></table></div>';
         }
-        if (loaded === queries.length) c.innerHTML = html || '<div class="error">AniList API error</div>';
+        if (loaded === queries.length) { html += h + '</tr></table></div>'; checkDone(); }
       });
     })(i);
   }
+  // MAL Top Anime
+  (function() {
+    var x = new XMLHttpRequest();
+    x.open("GET", "https://api.jikan.moe/v4/top/anime?limit=20", true);
+    x.onreadystatechange = function() {
+      if (x.readyState !== 4) return;
+      if (x.status === 200) {
+        try {
+          var d = JSON.parse(x.responseText).data || [];
+          var h = '<div class="section-title">Top Anime (MAL)</div><div class="card-table"><table><tr>';
+          for (var j = 0; j < d.length; j++) {
+            var img = d[j].images && d[j].images.jpg && (d[j].images.jpg.large_image_url || d[j].images.jpg.image_url) || "";
+            var t = d[j].title || "";
+            h += '<td><div class="poster-card" onclick="openExternalResult(\'' + t.replace(/'/g, "\\'") + '\')">';
+            if (img) h += '<img src="' + img + '" alt="" onerror="this.style.display=\'none\'">';
+            else h += '<div style="height:140px;background:#111"></div>';
+            h += '<div class="label">' + t + '</div></div></td>';
+            if ((j + 1) % 4 === 0 && j < d.length - 1) h += '</tr><tr>';
+          }
+          html += h + '</tr></table></div>';
+        } catch(e) {}
+      }
+      checkDone();
+    };
+    x.send();
+  })();
+  // Kitsu Trending
+  (function() {
+    var x = new XMLHttpRequest();
+    x.open("GET", "https://kitsu.io/api/edge/trending/anime", true);
+    x.setRequestHeader("Accept", "application/vnd.api+json");
+    x.onreadystatechange = function() {
+      if (x.readyState !== 4) return;
+      if (x.status === 200) {
+        try {
+          var d = JSON.parse(x.responseText).data || [];
+          var h = '<div class="section-title">Trending (Kitsu)</div><div class="card-table"><table><tr>';
+          for (var j = 0; j < d.length; j++) {
+            var attrs = d[j].attributes || {};
+            var img = attrs.posterImage && (attrs.posterImage.large || attrs.posterImage.original || "") || "";
+            var t = attrs.canonicalTitle || attrs.titles && (attrs.titles.en || attrs.titles.en_jp) || "";
+            h += '<td><div class="poster-card" onclick="openExternalResult(\'' + t.replace(/'/g, "\\'") + '\')">';
+            if (img) h += '<img src="' + img + '" alt="" onerror="this.style.display=\'none\'">';
+            else h += '<div style="height:140px;background:#111"></div>';
+            h += '<div class="label">' + t + '</div></div></td>';
+            if ((j + 1) % 4 === 0 && j < d.length - 1) h += '</tr><tr>';
+          }
+          html += h + '</tr></table></div>';
+        } catch(e) {}
+      }
+      checkDone();
+    };
+    x.send();
+  })();
 }
 function openHomeResult(idx) {
   var media = _homeResults[idx];
@@ -417,6 +477,26 @@ function openHomeResult(idx) {
       });
     } else {
       showAnilistDetail(media);
+    }
+  });
+}
+
+function openExternalResult(title) {
+  var c = document.getElementById("detail-content");
+  c.innerHTML = '<div class="loading">Looking for streams...</div>';
+  showPage("detail");
+  _lastPage = "detail";
+  anilistGraphQL("query ($q: String) { Page(page: 1, perPage: 1) { media(search: $q, type: ANIME) { id title { romaji english } coverImage { extraLarge large } description } } }", { q: title }, function(err, data) {
+    if (!err && data && data.Page && data.Page.media && data.Page.media.length) {
+      showAnilistDetail(data.Page.media[0]);
+    } else {
+      apiGet("/search?query=" + encodeURIComponent(title) + "&per_page=5", function(err2, data2) {
+        if (!err2 && data2.results && data2.results.length) {
+          openDetail(data2.results[0].id);
+        } else {
+          c.innerHTML = '<div class="error">Could not find "' + title + '"</div>';
+        }
+      });
     }
   });
 }
