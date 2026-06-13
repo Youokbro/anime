@@ -848,12 +848,25 @@ function playEpisode(num) {
       }
       controlsHtml += '</select></div>';
     }
+
+    // Build server list: Miruro providers + Consumet sources
+    var curProv = ep._provider || "unknown";
     controlsHtml += '<div class="c" style="width:auto"><label>Server:</label></div><div class="c" style="width:auto">';
     controlsHtml += '<select id="server-select" onchange="switchServer(' + num + ')">';
-    for (var sp = 0; sp < allSources.length; sp++) {
-      var sprov = allSources[sp]._provider || "Provider";
-      var sq = allSources[sp].quality || "";
-      controlsHtml += '<option value="' + sp + '"' + (sp === 0 ? " selected" : "") + ">" + sprov + (sq ? " (" + sq + ")" : "") + "</option>";
+    var allProvs = CURRENT_EP_PROVIDERS[num] || [];
+    for (var sp = 0; sp < allProvs.length; sp++) {
+      var pn = allProvs[sp].provider;
+      var sel = pn === curProv ? " selected" : "";
+      controlsHtml += '<option value="p' + sp + '"' + sel + '>' + pn + '</option>';
+    }
+    for (var si = 0; si < allSources.length; si++) {
+      var sprov = allSources[si]._provider || "Provider";
+      var sq = allSources[si].quality || "";
+      // Skip if same provider already listed
+      var dup = false;
+      for (var d = 0; d < allProvs.length; d++) { if (allProvs[d].provider === sprov) { dup = true; break; } }
+      if (dup) continue;
+      controlsHtml += '<option value="s' + si + '">' + sprov + (sq ? " (" + sq + ")" : "") + '</option>';
     }
     controlsHtml += '</select></div>';
 
@@ -1020,9 +1033,27 @@ function changeSub(val) {
 function switchServer(num) {
   var sel = document.getElementById("server-select");
   if (!sel) return;
-  var idx = parseInt(sel.value, 10);
-  if (idx >= 0 && idx < CURRENT_STREAMS.length) {
-    loadStream(CURRENT_STREAMS[idx]);
+  var val = sel.value;
+  if (val.charAt(0) === "p") {
+    // Miruro provider switch — reload episode
+    var idx = parseInt(val.substring(1), 10);
+    var provs = CURRENT_EP_PROVIDERS[num] || [];
+    if (idx >= 0 && idx < provs.length) {
+      var p = provs[idx];
+      var ep = CURRENT_EPISODES_MAP[num];
+      if (ep) {
+        ep._provider = p.provider;
+        ep._category = p.category;
+        ep.id = p.id;
+        playEpisode(num);
+      }
+    }
+  } else if (val.charAt(0) === "s") {
+    // Direct stream switch
+    var idx = parseInt(val.substring(1), 10);
+    if (idx >= 0 && idx < CURRENT_STREAMS.length) {
+      loadStream(CURRENT_STREAMS[idx]);
+    }
   }
 }
 
@@ -1158,10 +1189,19 @@ function playHianimeEpisode(num) {
 
     var controlsHtml = '<div class="c" style="width:auto"><label>Server:</label></div><div class="c" style="width:auto">';
     controlsHtml += '<select id="server-select" onchange="switchServer(' + num + ')">';
+    // Miruro providers from CURRENT_EP_PROVIDERS
+    var allProvs = CURRENT_EP_PROVIDERS[num] || [];
+    for (var sp = 0; sp < allProvs.length; sp++) {
+      controlsHtml += '<option value="p' + sp + '">' + allProvs[sp].provider + '</option>';
+    }
+    // Consumet/stream sources
     for (var si = 0; si < allSources.length; si++) {
       var si_prov = allSources[si]._provider || "Provider";
       var si_ql = allSources[si].quality || "";
-      controlsHtml += '<option value="' + si + '"' + (si === 0 ? " selected" : "") + ">" + si_prov + (si_ql ? " (" + si_ql + ")" : "") + "</option>";
+      var dup = false;
+      for (var d = 0; d < allProvs.length; d++) { if (allProvs[d].provider === si_prov) { dup = true; break; } }
+      if (dup) continue;
+      controlsHtml += '<option value="s' + si + '"' + (si === 0 && !allProvs.length ? " selected" : "") + '>' + si_prov + (si_ql ? " (" + si_ql + ")" : "") + '</option>';
     }
     controlsHtml += '</select></div>';
 
