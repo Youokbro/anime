@@ -374,7 +374,7 @@ function loadHome() {
   c.innerHTML = '<div class="loading">Loading...</div>';
   _homeResults = [];
   var queries = [
-    { t: "Popular", q: "{ Page(page: 1, perPage: 20) { media(sort: POPULARITY_DESC, type: ANIME) { id title { romaji english } coverImage { extraLarge } } } }" }
+    { t: "Popular", q: "{ Page(page: 1, perPage: 20) { media(sort: POPULARITY_DESC, type: ANIME) { id averageScore idMal title { romaji english } coverImage { extraLarge } } } }" }
   ];
   var loaded = 0;
   var total = 3; // AniList + MAL + Kitsu
@@ -495,7 +495,7 @@ function openHomeCard(idx) {
   if (d.anilistId) {
     // Search AniList for full media object to show season tabs
     CURRENT_ANIME_ANILIST_ID = d.anilistId;
-    anilistGraphQL("query ($id: Int) { Media(id: $id) { id title { romaji english } coverImage { extraLarge large } description } }", { id: d.anilistId }, function(err, data) {
+    anilistGraphQL("query ($id: Int) { Media(id: $id) { id averageScore idMal title { romaji english } coverImage { extraLarge large } description } }", { id: d.anilistId }, function(err, data) {
       if (!err && data && data.Media) {
         showAnilistDetail(data.Media);
       } else {
@@ -516,7 +516,7 @@ function openExternalResult(title) {
   c.innerHTML = '<div class="loading">Looking for streams...</div>';
   showPage("detail");
   _lastPage = "detail";
-  anilistGraphQL("query ($q: String) { Page(page: 1, perPage: 1) { media(search: $q, type: ANIME) { id title { romaji english } coverImage { extraLarge large } description } } }", { q: title }, function(err, data) {
+  anilistGraphQL("query ($q: String) { Page(page: 1, perPage: 1) { media(search: $q, type: ANIME) { id averageScore idMal title { romaji english } coverImage { extraLarge large } description } } }", { q: title }, function(err, data) {
     if (!err && data && data.Page && data.Page.media && data.Page.media.length) {
       showAnilistDetail(data.Page.media[0]);
     } else {
@@ -539,7 +539,7 @@ function doSearch() {
   c.innerHTML = '<div class="loading">Searching AniList...</div>';
   _lastPage = "search";
   showPage("search");
-  anilistGraphQL('query ($q: String) { Page(page: 1, perPage: 20) { media(search: $q, type: ANIME) { id title { romaji english } coverImage { extraLarge } description } } }', { q: q }, function(err, data) {
+  anilistGraphQL('query ($q: String) { Page(page: 1, perPage: 20) { media(search: $q, type: ANIME) { id averageScore idMal title { romaji english } coverImage { extraLarge } description } } }', { q: q }, function(err, data) {
     if (err || !data.Page || !data.Page.media || !data.Page.media.length) {
       c.innerHTML = '<div class="error">No results. Try different spelling?</div>';
       return;
@@ -575,6 +575,7 @@ function openDetail(id) {
   var html = '<h1 class="detail-title">' + (CURRENT_ANIME_TITLE || "Loading...") + '</h1>';
   html += '<div class="detail-gap"></div>';
   html += '<div id="detail-ids" style="font-size:11px;color:#555;margin-top:4px;padding:0 12px"></div>';
+  html += '<div id="detail-ratings" style="padding:8px 12px;font-size:15px;font-weight:bold"></div>';
   html += '<div id="season-tabs"></div>';
   html += '<div class="section-title" style="padding-left:12px">Episodes</div>';
   html += '<div id="ep-list"><div class="loading">Loading episodes...</div></div>';
@@ -648,13 +649,14 @@ function showAnilistDetail(media) {
   html += '<div class="detail-right">';
   if (desc) html += '<div class="detail-desc">' + desc + '</div>';
   html += '<div id="detail-ids" style="font-size:11px;color:#555;margin-top:4px"></div>';
+  html += '<div id="detail-ratings" style="padding:8px 12px;font-size:15px;font-weight:bold"></div>';
   html += '</div></div>';
   html += '<div class="section-title" style="padding-left:12px">Episodes</div><div id="season-tabs"></div><div id="ep-list"><div class="loading">Loading episodes...</div></div><div id="anilist-status"></div>';
   html += '</div></div>';
   c.innerHTML = html;
   loadAnilistStatus(media.id);
   loadSeasonRelations(media.id);
-  loadExternalIds(media.id);
+  loadExternalIds(media.id, media.averageScore, media.idMal);
   doConsumetSearch(CURRENT_ANIME_TITLE, function() {
     if (CURRENT_ANIME_ROMAJI && CURRENT_ANIME_ROMAJI !== CURRENT_ANIME_TITLE) {
       doConsumetSearch(CURRENT_ANIME_ROMAJI, function() {
@@ -717,30 +719,38 @@ function switchSeason(idx) {
   if (btns[idx]) btns[idx].className = "season-btn active";
 }
 
-function loadExternalIds(mediaId) {
+function loadExternalIds(mediaId, anilistScore, malId) {
   CURRENT_TMDB_ID = "";
   CURRENT_IMDB_ID = "";
-  anilistGraphQL("query ($id: Int) { Media(id: $id) { externalLinks { site url id } } }", { id: mediaId }, function(err, data) {
-    if (!err && data && data.Media && data.Media.externalLinks) {
-      var links = data.Media.externalLinks;
-      for (var i = 0; i < links.length; i++) {
-        var site = links[i].site || "";
-        if (site === "Crunchyroll") continue;
-        var url = links[i].url || "";
-        var m = url.match(/themoviedb\.org\/(?:tv|movie)\/(\d+)/i);
-        if (m) { CURRENT_TMDB_ID = m[1]; }
-        var m2 = url.match(/imdb\.com\/title\/(tt\d+)/i);
-        if (m2) { CURRENT_IMDB_ID = m2[1]; }
+  anilistGraphQL("query ($id: Int) { Media(id: $id) { averageScore idMal externalLinks { site url id } } }", { id: mediaId }, function(err, data) {
+    if (!err && data && data.Media) {
+      var m = data.Media;
+      if (m.averageScore && !anilistScore) anilistScore = m.averageScore;
+      if (m.idMal && !malId) malId = m.idMal;
+      if (m.externalLinks) {
+        for (var i = 0; i < m.externalLinks.length; i++) {
+          var site = m.externalLinks[i].site || "";
+          if (site === "Crunchyroll") continue;
+          var url = m.externalLinks[i].url || "";
+          var mt = url.match(/themoviedb\.org\/(?:tv|movie)\/(\d+)/i);
+          if (mt) { CURRENT_TMDB_ID = mt[1]; }
+          var mi = url.match(/imdb\.com\/title\/(tt\d+)/i);
+          if (mi) { CURRENT_IMDB_ID = mi[1]; }
+        }
       }
     }
-    if (CURRENT_TMDB_ID || CURRENT_IMDB_ID) {
+    // Show IDs after we have them
+    var afterTmdb = function() {
       showDetailIds();
+      fetchMalScore(malId);
+      fetchTmdbRating(CURRENT_TMDB_ID);
+    };
+    if (CURRENT_TMDB_ID || CURRENT_IMDB_ID) {
+      afterTmdb();
     } else {
-      // Fallback: search TMDB by anime title
       searchTMDB(CURRENT_ANIME_TITLE, function(tmdbId) {
         if (tmdbId) {
           CURRENT_TMDB_ID = tmdbId;
-          // Also fetch IMDb ID from TMDB
           var xhr = new XMLHttpRequest();
           xhr.open("GET", "https://api.themoviedb.org/3/tv/" + tmdbId + "/external_ids?api_key=" + TMDB_KEY);
           xhr.onload = function() {
@@ -748,16 +758,65 @@ function loadExternalIds(mediaId) {
               var edata = JSON.parse(xhr.responseText);
               if (edata.imdb_id) CURRENT_IMDB_ID = edata.imdb_id;
             }
-            showDetailIds();
+            afterTmdb();
           };
-          xhr.onerror = function() { showDetailIds(); };
+          xhr.onerror = function() { afterTmdb(); };
           xhr.send();
         } else {
-          showDetailIds();
+          afterTmdb();
         }
       });
     }
+    // Show AniList score immediately
+    var ratEl = document.getElementById("detail-ratings");
+    if (ratEl) {
+      var parts = [];
+      if (anilistScore) parts.push("AniList: " + anilistScore + "%");
+      ratEl.innerHTML = parts.join("  |  ");
+    }
   });
+}
+
+function fetchMalScore(malId) {
+  if (!malId) return;
+  var xhr = new XMLHttpRequest();
+  xhr.open("GET", "https://api.jikan.moe/v4/anime/" + malId + "?fields=score", true);
+  xhr.onload = function() {
+    if (xhr.status !== 200) return;
+    try {
+      var d = JSON.parse(xhr.responseText);
+      var score = d.data && d.data.score;
+      if (!score) return;
+      var ratEl = document.getElementById("detail-ratings");
+      if (!ratEl) return;
+      var txt = ratEl.textContent || ratEl.innerText || "";
+      txt = txt.replace(/MAL: [\d.]+/g, "").replace(/  \|  $/, "").replace(/\s*\|\s*/g, " | ");
+      if (txt) txt += "  |  ";
+      ratEl.innerHTML = txt + '<span style="color:#38bdf8">MAL: ' + score + '</span>';
+    } catch (e) {}
+  };
+  xhr.send();
+}
+
+function fetchTmdbRating(tmdbId) {
+  if (!tmdbId) return;
+  var xhr = new XMLHttpRequest();
+  xhr.open("GET", "https://api.themoviedb.org/3/tv/" + tmdbId + "?api_key=" + TMDB_KEY, true);
+  xhr.onload = function() {
+    if (xhr.status !== 200) return;
+    try {
+      var d = JSON.parse(xhr.responseText);
+      var rating = d.vote_average;
+      if (!rating) return;
+      var ratEl = document.getElementById("detail-ratings");
+      if (!ratEl) return;
+      var txt = ratEl.textContent || ratEl.innerText || "";
+      txt = txt.replace(/TMDB: [\d.]+/g, "").replace(/  \|  $/, "").replace(/\s*\|\s*/g, " | ");
+      if (txt) txt += "  |  ";
+      ratEl.innerHTML = txt + '<span style="color:#38bdf8">TMDB: ' + rating + '</span>';
+    } catch (e) {}
+  };
+  xhr.send();
 }
 
 function searchTMDB(title, callback) {
