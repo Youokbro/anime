@@ -954,6 +954,25 @@ function playEpisode(num) {
       }
       addTracks(data.subtitles);
     }
+    // 1b. ezvidapi — direct HLS via TMDB ID
+    if (CURRENT_TMDB_ID) {
+      (function(tmdbEp) {
+        var ezxhr = new XMLHttpRequest();
+        ezxhr.open("GET", "https://api.ezvidapi.com/tv/vidlink/" + CURRENT_TMDB_ID + "?season=1&episode=" + tmdbEp);
+        ezxhr.onload = function() {
+          if (ezxhr.status === 200) {
+            try {
+              var ezdata = JSON.parse(ezxhr.responseText);
+              if (ezdata.stream_url) {
+                addSource({ url: ezdata.stream_url, type: "hls", quality: "HD", _provider: "EzVidLink" });
+                if (ezdata.subtitles) addTracks(ezdata.subtitles);
+              }
+            } catch (e) {}
+          }
+        };
+        ezxhr.send();
+      })(num);
+    }
     // 2. Consumet _all=1 — search if needed
     if (!HIANIME_ID) {
       consumetGet("/search?q=" + encodeURIComponent(CURRENT_ANIME_TITLE) + "&per_page=5", function(err2, sd) {
