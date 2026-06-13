@@ -810,7 +810,7 @@ function playEpisode(num) {
   ifr.src = ""; ifr.style.display = "none";
   document.getElementById("player-video").style.display = "block";
   var ep = CURRENT_EPISODES_MAP[num];
-  if (!ep) return;
+  if (!ep) { playHianimeEpisode(num); return; }
   var eid = ep.id || "";
   var provider = ep._provider || "unknown";
   showPage("player");
@@ -818,107 +818,45 @@ function playEpisode(num) {
   v.pause(); v.src = ""; v.innerHTML = "";
   if (window._hls) { window._hls.destroy(); window._hls = null; }
   document.getElementById("player-info").innerHTML = CURRENT_ANIME_TITLE + " - Ep " + num;
-  document.getElementById("player-controls").innerHTML = '<span class="loading">Loading...</span>';
+  document.getElementById("player-controls").innerHTML = '<span class="loading">Loading all sources...</span>';
   document.getElementById("player-subtitles").innerHTML = "";
-  apiGet("/" + eid, function(err, data) {
-    var controlsEl = document.getElementById("player-controls");
-    if (err) {
-      if (HI_FAILED) {
-        controlsEl.innerHTML = '<div class="error">Stream unavailable from all sources</div><br><a class="ext-link" href="https://miruro.tv/search?q=' + encodeURIComponent(CURRENT_ANIME_TITLE) + '" target="_blank">Open on Miruro.to</a>';
-        return;
-      }
-      // Try HiAnime fallback
-      if (CURRENT_HIANIME_EPS.length) { playHianimeEpisode(num); return; }
-      // Otherwise search once
-      if (!HIANIME_ID) {
-        var searchQ = CURRENT_ANIME_TITLE;
-        var triedRomaji = false;
-        (function doSearch() {
-          consumetGet("/search?q=" + encodeURIComponent(searchQ), function(err2, sd) {
-            if (sd && sd.results && sd.results.length) {
-              HIANIME_ID = sd.results[0].id;
-              CURRENT_PROVIDER = sd._provider || sd.results[0]._provider || "AnimeSaturn";
-              consumetGet("/info?id=" + HIANIME_ID + "&provider=" + CURRENT_PROVIDER, function(err3, info) {
-                if (info && info.episodes) CURRENT_HIANIME_EPS = info.episodes;
-                playHianimeEpisode(num);
-              });
-            } else if (!triedRomaji && CURRENT_ANIME_ROMAJI && CURRENT_ANIME_ROMAJI !== CURRENT_ANIME_TITLE) {
-              triedRomaji = true;
-              searchQ = CURRENT_ANIME_ROMAJI;
-              doSearch();
-            } else {
-              var mu = "https://miruro.tv/search?q=" + encodeURIComponent(CURRENT_ANIME_TITLE);
-              controlsEl.innerHTML = 'This episode is from <b>' + provider + '</b> (API failed). '
-                + '<br><br><a class="ext-link" href="' + mu + '" target="_blank">Open on Miruro.to</a>';
-            }
-          });
-        })();
-      } else {
-        playHianimeEpisode(num);
-      }
+
+  var allSources = [];
+  var allTracks = [];
+
+  function renderSources() {
+    if (!allSources.length) {
+      document.getElementById("player-controls").innerHTML = '<div class="error">All sources failed</div>';
       return;
     }
-    var streams = data.streams || [];
-    var subs = data.subtitles || [];
-    CURRENT_SUBTITLES = subs;
-
-    var playable = [];
-    for (var s = 0; s < streams.length; s++) {
-      if (streams[s].type !== "embed") playable.push(streams[s]);
-    }
-    if (!playable.length) {
-      var embedUrl = "";
-      for (var s = 0; s < streams.length; s++) {
-        if (streams[s].type === "embed") { embedUrl = streams[s].url; break; }
-      }
-      var html = '<div style="text-align:center;padding:10px">';
-      if (embedUrl) {
-        html += '<a class="ext-link" href="' + embedUrl + '" target="_blank">Open player in new tab</a><br><br>';
-      } else {
-        html += '<div class="error">No playable streams from this provider</div><br>';
-      }
-      html += '<button class="ext-link" onclick="playHianimeEpisode(' + num + ')" style="background:#555;cursor:pointer">Try HiAnime</button>';
-      controlsEl.innerHTML = html + '</div>';
-      return;
-    }
-    CURRENT_STREAMS = playable;
-
+    CURRENT_STREAMS = allSources;
+    CURRENT_SUBTITLES = allTracks;
     var controlsHtml = '<div class="c" style="width:auto"><label>Quality:</label></div><div class="c" style="width:auto">';
     controlsHtml += '<select id="quality-select" onchange="changeQuality()">';
-    for (var q = 0; q < playable.length; q++) {
-      var qlabel = playable[q].quality || "Auto";
-      var typeLabel = playable[q].type === "mp4" ? "MP4" : "HLS";
+    for (var q = 0; q < allSources.length; q++) {
+      var qlabel = allSources[q].quality || "Auto";
+      var typeLabel = allSources[q].type === "mp4" ? "MP4" : "HLS";
       controlsHtml += '<option value="' + q + '"' + (q === 0 ? " selected" : "") + ">" + qlabel + " (" + typeLabel + ")</option>";
     }
     controlsHtml += '</select></div>';
 
-    if (subs.length) {
+    if (allTracks.length) {
       controlsHtml += '<div class="c" style="width:auto"><label>Subs:</label></div><div class="c" style="width:auto">';
       controlsHtml += '<select onchange="changeSub(this.value)"><option value="">None</option>';
-      for (var j = 0; j < subs.length; j++) {
-        controlsHtml += '<option value="' + j + '">' + (subs[j].label || "Sub " + (j+1)) + "</option>";
+      for (var j = 0; j < allTracks.length; j++) {
+        controlsHtml += '<option value="' + j + '">' + (allTracks[j].label || "Track " + (j+1)) + "</option>";
       }
       controlsHtml += '</select></div>';
     }
-    var curProv = ep._provider || "unknown";
-    var allProvs = CURRENT_EP_PROVIDERS[num] || [];
-    var hasAnimeSaturn = false;
-    for (var hi = 0; hi < CURRENT_HIANIME_EPS.length; hi++) {
-      if (CURRENT_HIANIME_EPS[hi].number === num) { hasAnimeSaturn = true; break; }
+    controlsHtml += '<div class="c" style="width:auto"><label>Server:</label></div><div class="c" style="width:auto">';
+    controlsHtml += '<select id="server-select" onchange="switchServer(' + num + ')">';
+    for (var sp = 0; sp < allSources.length; sp++) {
+      var sprov = allSources[sp]._provider || "Provider";
+      var sq = allSources[sp].quality || "";
+      controlsHtml += '<option value="' + sp + '"' + (sp === 0 ? " selected" : "") + ">" + sprov + (sq ? " (" + sq + ")" : "") + "</option>";
     }
-    if (allProvs.length > 0 || hasAnimeSaturn) {
-      controlsHtml += '<div class="c" style="width:auto"><label>Server:</label></div><div class="c" style="width:auto">';
-      controlsHtml += '<select id="server-select" onchange="switchServer(' + num + ')">';
-      for (var sp = 0; sp < allProvs.length; sp++) {
-        var provName = allProvs[sp].provider;
-        var sel = provName === curProv ? " selected" : "";
-        controlsHtml += '<option value="' + sp + '"' + sel + '>' + provName + '</option>';
-      }
-      if (hasAnimeSaturn) {
-        controlsHtml += '<option value="hi">AnimeSaturn</option>';
-      }
-      controlsHtml += '</select></div>';
-    }
+    controlsHtml += '</select></div>';
+
     if (CURRENT_TMDB_ID || CURRENT_IMDB_ID) {
       controlsHtml += '<div class="c" style="width:auto"><label>Embed:</label></div><div class="c" style="width:auto">';
       controlsHtml += '<select id="embed-select" onchange="switchEmbed(' + num + ')">';
@@ -930,13 +868,88 @@ function playEpisode(num) {
       }
       controlsHtml += '</select></div>';
     }
-    controlsEl.innerHTML = controlsHtml;
+    document.getElementById("player-controls").innerHTML = controlsHtml;
     if (v.canPlayType("application/vnd.apple.mpegurl") === "") {
-      for (var i = 0; i < playable.length; i++) {
-        if (playable[i].type === "mp4" && playable[i].url.indexOf("Authorization=") < 0) { loadStream(playable[i]); return; }
+      for (var i = 0; i < allSources.length; i++) {
+        if (allSources[i].type === "mp4" && allSources[i].url.indexOf("Authorization=") < 0) { loadStream(allSources[i]); return; }
       }
     }
-    loadStream(playable[0]);
+    loadStream(allSources[0]);
+  }
+
+  function addSource(src) {
+    for (var c = 0; c < allSources.length; c++) { if (allSources[c].url === src.url) return; }
+    allSources.push(src);
+  }
+  function addTracks(tracks) {
+    if (!tracks) return;
+    for (var t = 0; t < tracks.length; t++) { allTracks.push(tracks[t]); }
+  }
+
+  // 1. Miruro API
+  apiGet("/" + eid, function(err, data) {
+    if (!err && data && data.streams) {
+      for (var s = 0; s < data.streams.length; s++) {
+        var st = data.streams[s];
+        if (st.type !== "embed") {
+          st._provider = st._provider || provider;
+          addSource(st);
+        }
+      }
+      addTracks(data.subtitles);
+    }
+    // 2. Consumet _all=1 — search if needed
+    if (!HIANIME_ID) {
+      consumetGet("/search?q=" + encodeURIComponent(CURRENT_ANIME_TITLE) + "&per_page=5", function(err2, sd) {
+        if (!err2 && sd && sd.results && sd.results.length) {
+          HIANIME_ID = sd.results[0].id;
+          CURRENT_PROVIDER = sd._provider || sd.results[0]._provider || "AnimeSaturn";
+          consumetGet("/info?id=" + HIANIME_ID + "&provider=" + CURRENT_PROVIDER, function(err3, info) {
+            if (!err3 && info && info.episodes) CURRENT_HIANIME_EPS = info.episodes;
+            var cep = null;
+            for (var ci = 0; ci < (CURRENT_HIANIME_EPS || []).length; ci++) {
+              if (CURRENT_HIANIME_EPS[ci].number === num) { cep = CURRENT_HIANIME_EPS[ci]; break; }
+            }
+            if (cep && cep.id) {
+              consumetGet("/watch?id=" + cep.id + "&_all=1", function(err4, wd) {
+                if (!err4 && wd && wd.sources) {
+                  for (var ws = 0; ws < wd.sources.length; ws++) {
+                    wd.sources[ws]._provider = wd.sources[ws]._provider || "Consumet";
+                    addSource(wd.sources[ws]);
+                  }
+                  addTracks(wd.tracks);
+                }
+                renderSources();
+              });
+            } else {
+              renderSources();
+            }
+          });
+        } else {
+          renderSources();
+        }
+      });
+    } else {
+      // Already have HIANIME_ID, try to get consumet sources directly
+      var cep = null;
+      for (var ci = 0; ci < (CURRENT_HIANIME_EPS || []).length; ci++) {
+        if (CURRENT_HIANIME_EPS[ci].number === num) { cep = CURRENT_HIANIME_EPS[ci]; break; }
+      }
+      if (cep && cep.id) {
+        consumetGet("/watch?id=" + cep.id + "&_all=1", function(err4, wd) {
+          if (!err4 && wd && wd.sources) {
+            for (var ws = 0; ws < wd.sources.length; ws++) {
+              wd.sources[ws]._provider = wd.sources[ws]._provider || "Consumet";
+              addSource(wd.sources[ws]);
+            }
+            addTracks(wd.tracks);
+          }
+          renderSources();
+        });
+      } else {
+        renderSources();
+      }
+    }
   });
 }
 
@@ -975,14 +988,10 @@ function tryNextStream(current) {
     if (CURRENT_STREAMS[i] === current) { idx = i; break; }
   }
   if (idx >= 0 && idx + 1 < CURRENT_STREAMS.length) {
+    var sel = document.getElementById("server-select");
+    if (sel && sel.options) sel.selectedIndex = idx + 1;
     var next = CURRENT_STREAMS[idx + 1];
-    var hiSelect = document.getElementById("hi-server-select");
-    if (hiSelect) {
-      if (hiSelect.options) hiSelect.selectedIndex = idx + 1;
-      streamHiVideo(next);
-    } else {
-      loadStream(next);
-    }
+    loadStream(next);
   } else {
     document.getElementById("player-controls").innerHTML += "<br><span class=\"error\">Try another server above</span>";
   }
@@ -1011,19 +1020,9 @@ function changeSub(val) {
 function switchServer(num) {
   var sel = document.getElementById("server-select");
   if (!sel) return;
-  var val = sel.value;
-  if (val === "hi") { playHianimeEpisode(num); return; }
-  var idx = parseInt(val, 10);
-  var provs = CURRENT_EP_PROVIDERS[num] || [];
-  if (idx >= 0 && idx < provs.length) {
-    var p = provs[idx];
-    var ep = CURRENT_EPISODES_MAP[num];
-    if (ep) {
-      ep._provider = p.provider;
-      ep._category = p.category;
-      ep.id = p.id;
-      playEpisode(num);
-    }
+  var idx = parseInt(sel.value, 10);
+  if (idx >= 0 && idx < CURRENT_STREAMS.length) {
+    loadStream(CURRENT_STREAMS[idx]);
   }
 }
 
@@ -1158,11 +1157,11 @@ function playHianimeEpisode(num) {
     CURRENT_SUBTITLES = allTracks;
 
     var controlsHtml = '<div class="c" style="width:auto"><label>Server:</label></div><div class="c" style="width:auto">';
-    controlsHtml += '<select id="hi-server-select" onchange="switchHiSource()">';
+    controlsHtml += '<select id="server-select" onchange="switchServer(' + num + ')">';
     for (var si = 0; si < allSources.length; si++) {
       var si_prov = allSources[si]._provider || "Provider";
-      var si_ql = allSources[si].quality || "default";
-      controlsHtml += '<option value="' + si + '"' + (si === 0 ? " selected" : "") + ">" + si_prov + " (" + si_ql + ")</option>";
+      var si_ql = allSources[si].quality || "";
+      controlsHtml += '<option value="' + si + '"' + (si === 0 ? " selected" : "") + ">" + si_prov + (si_ql ? " (" + si_ql + ")" : "") + "</option>";
     }
     controlsHtml += '</select></div>';
 
@@ -1189,7 +1188,7 @@ function playHianimeEpisode(num) {
       document.getElementById("player-controls").innerHTML += embHtml;
     }
 
-    streamHiVideo(allSources[0]);
+    loadStream(allSources[0]);
   }
 
   // Fetch from Consumet _all=1
