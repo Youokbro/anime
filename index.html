@@ -849,7 +849,7 @@ function playEpisode(num) {
       controlsHtml += '</select></div>';
     }
 
-    // Build server list: Miruro providers + Consumet sources
+    // Build server list: Miruro providers + Consumet sources + Embed sources
     var curProv = ep._provider || "unknown";
     controlsHtml += '<div class="c" style="width:auto"><label>Server:</label></div><div class="c" style="width:auto">';
     controlsHtml += '<select id="server-select" onchange="switchServer(' + num + ')">';
@@ -862,25 +862,20 @@ function playEpisode(num) {
     for (var si = 0; si < allSources.length; si++) {
       var sprov = allSources[si]._provider || "Provider";
       var sq = allSources[si].quality || "";
-      // Skip if same provider already listed
       var dup = false;
       for (var d = 0; d < allProvs.length; d++) { if (allProvs[d].provider === sprov) { dup = true; break; } }
       if (dup) continue;
       controlsHtml += '<option value="s' + si + '">' + sprov + (sq ? " (" + sq + ")" : "") + '</option>';
     }
+    if (CURRENT_TMDB_ID || CURRENT_IMDB_ID) {
+      if (CURRENT_TMDB_ID) {
+        controlsHtml += '<option value="e_vidsrc">Vidsrc</option>';
+        controlsHtml += '<option value="e_2embed">2Embed</option>';
+        controlsHtml += '<option value="e_multiembed">MultiEmbed</option>';
+      }
+    }
     controlsHtml += '</select></div>';
 
-    if (CURRENT_TMDB_ID || CURRENT_IMDB_ID) {
-      controlsHtml += '<div class="c" style="width:auto"><label>Embed:</label></div><div class="c" style="width:auto">';
-      controlsHtml += '<select id="embed-select" onchange="switchEmbed(' + num + ')">';
-      controlsHtml += '<option value="">None</option>';
-      if (CURRENT_TMDB_ID) {
-        controlsHtml += '<option value="vidsrc">Vidsrc</option>';
-        controlsHtml += '<option value="2embed">2Embed</option>';
-        controlsHtml += '<option value="multiembed">MultiEmbed</option>';
-      }
-      controlsHtml += '</select></div>';
-    }
     document.getElementById("player-controls").innerHTML = controlsHtml;
     if (v.canPlayType("application/vnd.apple.mpegurl") === "") {
       for (var i = 0; i < allSources.length; i++) {
@@ -1054,6 +1049,29 @@ function switchServer(num) {
     if (idx >= 0 && idx < CURRENT_STREAMS.length) {
       loadStream(CURRENT_STREAMS[idx]);
     }
+  } else if (val.indexOf("e_") === 0) {
+    // Embed source switch
+    var embedName = val.substring(2);
+    var id = CURRENT_TMDB_ID || CURRENT_IMDB_ID;
+    if (!id) return;
+    var season = 1;
+    var episode = num;
+    var url = "";
+    if (embedName === "vidsrc") {
+      if (CURRENT_TMDB_ID) url = "https://vidsrc.to/embed/tv/" + CURRENT_TMDB_ID + "/" + season + "/" + episode;
+      else if (CURRENT_IMDB_ID) url = "https://vidsrc.to/embed/tv/" + CURRENT_IMDB_ID + "/" + season + "/" + episode;
+    } else if (embedName === "2embed") {
+      if (CURRENT_IMDB_ID) url = "https://www.2embed.cc/embedtv/" + CURRENT_IMDB_ID + "&s=" + season + "&e=" + episode;
+      else if (CURRENT_TMDB_ID) url = "https://www.2embed.cc/embedtv/" + CURRENT_TMDB_ID + "&s=" + season + "&e=" + episode;
+    } else if (embedName === "multiembed") {
+      if (CURRENT_TMDB_ID) url = "https://multiembed.cc/embed/tv/" + CURRENT_TMDB_ID + "/" + season + "/" + episode;
+    }
+    if (!url) return;
+    document.getElementById("player-video").style.display = "none";
+    var ifr = document.getElementById("player-embed");
+    ifr.style.display = "block";
+    ifr.style.height = (window.innerHeight - 100) + "px";
+    ifr.src = url;
   }
 }
 
@@ -1203,6 +1221,13 @@ function playHianimeEpisode(num) {
       if (dup) continue;
       controlsHtml += '<option value="s' + si + '"' + (si === 0 && !allProvs.length ? " selected" : "") + '>' + si_prov + (si_ql ? " (" + si_ql + ")" : "") + '</option>';
     }
+    if (CURRENT_TMDB_ID || CURRENT_IMDB_ID) {
+      if (CURRENT_TMDB_ID) {
+        controlsHtml += '<option value="e_vidsrc">Vidsrc</option>';
+        controlsHtml += '<option value="e_2embed">2Embed</option>';
+        controlsHtml += '<option value="e_multiembed">MultiEmbed</option>';
+      }
+    }
     controlsHtml += '</select></div>';
 
     if (allTracks.length) {
@@ -1214,19 +1239,6 @@ function playHianimeEpisode(num) {
       controlsHtml += '</select></div>';
     }
     document.getElementById("player-controls").innerHTML = controlsHtml;
-
-    if (CURRENT_TMDB_ID || CURRENT_IMDB_ID) {
-      var embHtml = '<div class="c" style="width:auto"><label>Embed:</label></div><div class="c" style="width:auto">';
-      embHtml += '<select id="embed-select" onchange="switchEmbed(' + num + ')">';
-      embHtml += '<option value="">None</option>';
-      if (CURRENT_TMDB_ID) {
-        embHtml += '<option value="vidsrc">Vidsrc</option>';
-        embHtml += '<option value="2embed">2Embed</option>';
-        embHtml += '<option value="multiembed">MultiEmbed</option>';
-      }
-      embHtml += '</select></div>';
-      document.getElementById("player-controls").innerHTML += embHtml;
-    }
 
     loadStream(allSources[0]);
   }
