@@ -828,14 +828,17 @@ function playFromDetail(num) {
               var bData = JSON.parse(bxhr.responseText);
               var streams = bData.streams || [];
               for (var s = 0; s < streams.length; s++) {
-                var url = streams[s].url;
-                if (url.indexOf(".m3u8") === -1 && url.indexOf(".mp4") === -1) continue;
+                var st = streams[s];
+                var url = st.url;
+                var stype = (st.type || "").toLowerCase();
+                if (stype === "embed") continue;
+                if (url.indexOf(".m3u8") === -1 && url.indexOf(".mp4") === -1 && stype !== "hls" && stype !== "mp4") continue;
                 var proxied = PROXY_BASE + "?url=" + encodeURIComponent(url) + "&referer=" + encodeURIComponent("https://www.miruro.tv/");
                 addSource({
                   url: proxied,
-                  type: streams[s].url.indexOf(".mp4") > -1 ? "mp4" : "hls",
-                  quality: streams[s].quality || "HD",
-                  _provider: "Kiwi"
+                  type: stype === "mp4" || url.indexOf(".mp4") > -1 ? "mp4" : "hls",
+                  quality: st.quality || "HD",
+                  _provider: "Miruro"
                 });
               }
               if (bData.subtitles) addTracks(bData.subtitles);
