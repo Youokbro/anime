@@ -38,12 +38,12 @@ input,button{font-size:16px}
 .detail-desc{color:#aaa;font-size:13px;line-height:1.5;margin-bottom:12px}
 .detail-cover{width:100%;display:block;border-radius:4px;margin-bottom:10px}
 
-.detail-split{display:table;width:100%}
+.detail-top{display:table;width:100%}
 .detail-left{display:table-cell;width:35%;vertical-align:top;padding:12px}
 .detail-right{display:table-cell;width:65%;vertical-align:top;padding:12px 12px 12px 0}
 
 @media (max-width:767px){
-.detail-split,.detail-left,.detail-right{display:block;width:auto}
+.detail-top,.detail-left,.detail-right{display:block;width:auto}
 .detail-left{padding:12px 12px 0}
 .detail-right{padding:0 12px 12px}
 }
@@ -672,13 +672,14 @@ function showAnilistDetail(media) {
   var desc = (media.description || "").replace(/<[^>]*>/g, "");
   var html = '<h1 class="detail-title">' + title + '</h1>';
   html += '<div class="detail-gap"></div>';
-  html += '<div class="detail-split">';
+  html += '<div class="detail-top">';
   html += '<div class="detail-left">';
   if (img) html += '<img class="detail-cover" src="' + img + '" alt="">';
   html += '</div>';
   html += '<div class="detail-right">';
   if (desc) html += '<div class="detail-desc">' + desc + '</div>';
-  html += '<div class="section-title">Episodes</div><div id="season-tabs"></div><div id="ep-list"><div class="loading">Loading episodes...</div></div><div id="anilist-status"></div>';
+  html += '</div></div>';
+  html += '<div class="section-title" style="padding-left:12px">Episodes</div><div id="season-tabs"></div><div id="ep-list"><div class="loading">Loading episodes...</div></div><div id="anilist-status"></div>';
   html += '</div></div>';
   c.innerHTML = html;
   loadAnilistStatus(media.id);
