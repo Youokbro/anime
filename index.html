@@ -28,10 +28,11 @@ input,button{font-size:16px}
 .card-table{margin:0 6px 14px}
 .card-table table{width:100%;border-collapse:collapse}
 .card-table td{width:25%;padding:4px;text-align:center;vertical-align:top}
-@media (min-width:1024px){.card-table td{width:16.66%}}
+@media (min-width:1024px){.card-table td{width:14.28%}}
+@media (min-width:768px) and (max-width:1023px){.card-table td{width:20%}}
 @media (max-width:480px){.card-table td{width:33.33%}}
 .poster-card{display:block;background:#0a0a0a;border-radius:4px;overflow:hidden;cursor:pointer;border:1px solid #1a1a1a}
-.poster-card img{width:100%;display:block;min-height:140px;background:#111}
+.poster-card img{width:100%;display:block;background:#111;max-height:260px;min-height:100px}
 .poster-card .label{padding:6px 4px;font-size:11px;color:#ccc;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 
 .detail-title{font-size:18px;color:#38bdf8;padding:12px 12px 0;margin:0}
@@ -282,7 +283,6 @@ function loadAnilistSections() {
         html += '<div class="label">' + t + '</div>';
         if (name === "CURRENT") html += '<div style="font-size:10px;color:#38bdf8">Ep ' + prog + '/' + ep + '</div>';
         html += '</div></td>';
-        if ((j + 1) % 4 === 0 && j < entries.length - 1) html += '</tr><tr>';
       }
       html += '</tr></table></div>';
     }
@@ -354,7 +354,6 @@ function buildSection(title, data) {
     h += '<td><div class="poster-card" onclick="openDetail(' + id + ')">';
     h += '<img src="' + getImg(r[i]) + '" alt="" onerror="this.style.display=\'none\'">';
     h += '<div class="label">' + getTitle(r[i]) + '</div></div></td>';
-    if ((i + 1) % 4 === 0 && i < r.length - 1) h += '</tr><tr>';
   }
   return h + '</tr></table></div>';
 }
@@ -384,7 +383,6 @@ function loadHome() {
             if (img) h += '<img src="' + img + '" alt="" onerror="this.style.display=\'none\'">';
             else h += '<div style="height:140px;background:#111"></div>';
             h += '<div class="label">' + t + '</div></div></td>';
-            if ((j + 1) % 4 === 0 && j < items.length - 1) h += '</tr><tr>';
             _homeResults.push(m);
           }
           html += h + '</tr></table></div>';
@@ -442,7 +440,6 @@ function doSearch() {
       if (img) html += '<img src="' + img + '" alt="" onerror="this.style.display=\'none\'">';
       else html += '<div style="height:140px;background:#111"></div>';
       html += '<div class="label">' + t + '</div></div></td>';
-      if ((i + 1) % 4 === 0 && i < data.Page.media.length - 1) html += '</tr><tr>';
     }
     c.innerHTML = html + '</tr></table></div>';
   });
