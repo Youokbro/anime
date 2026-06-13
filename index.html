@@ -1116,20 +1116,20 @@ function switchServer(num) {
     if (!id) return;
     var season = 1;
     var episode = num;
-    var url = "";
+    var embedUrl = "";
     if (embedName === "vidsrc") {
-      url = "https://vidsrc.to/embed/tv/" + id + "/" + season + "/" + episode;
+      embedUrl = "https://vidsrc.to/embed/tv/" + id + "/" + season + "/" + episode;
     } else if (embedName === "2embed") {
-      url = "https://www.2embed.cc/embedtv/" + id + "&s=" + season + "&e=" + episode;
+      embedUrl = "https://www.2embed.cc/embedtv/" + id + "&s=" + season + "&e=" + episode;
     } else if (embedName === "multiembed") {
-      url = "https://multiembed.cc/embed/tv/" + id + "/" + season + "/" + episode;
+      embedUrl = "https://multiembed.cc/embed/tv/" + id + "/" + season + "/" + episode;
     }
-    if (!url) return;
+    if (!embedUrl) return;
     document.getElementById("player-video").style.display = "none";
     var ifr = document.getElementById("player-embed");
     ifr.style.display = "block";
     ifr.style.height = (window.innerHeight - 100) + "px";
-    ifr.src = url;
+    ifr.src = PROXY_BASE + "/embed?url=" + encodeURIComponent(embedUrl);
   }
 }
 
