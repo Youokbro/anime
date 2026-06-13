@@ -73,7 +73,6 @@ input,button{font-size:16px}
 
 #player-page{position:fixed;top:0;left:0;right:0;bottom:0;z-index:100;background:#000}
 #player-page video{width:100%;max-width:960px;display:block;margin:0 auto;background:#000}
-#player-embed{flex:1;background:#000}
 .player-top{background:#050505;padding:8px 12px;display:table;width:100%}
 .player-top .c{display:table-cell;vertical-align:middle}
 .player-info{font-size:13px;color:#eee;padding-left:10px}
@@ -139,56 +138,26 @@ input,button{font-size:16px}
     <div class="c player-info" id="player-info">Episode</div>
   </div>
   <video id="player-video" controls autoplay playsinline></video>
-  <iframe id="player-embed" style="display:none;width:100%;height:100%;border:none;background:#000"></iframe>
   <div id="player-controls" class="player-controls"></div>
   <div class="player-sub" id="player-subtitles"></div>
 </div>
 
 <script>
-var API_BASE = "https://miruro-api-navy.vercel.app";
-var PROXY_BASE = "https://anim-proxy.ahaantadi.workers.dev";
-var CONSUMET_API = "https://anime-api-nu-eight.vercel.app";
-var CURRENT_EPISODES = [];
-var CURRENT_EPISODES_MAP = {};
 var CURRENT_STREAMS = [];
-var CURRENT_EP_PROVIDERS = {};
 var CURRENT_SUBTITLES = [];
-var CURRENT_REFERER = "";
 var TMDB_KEY = "0ff3dcace998b2fa393607f0af17a6a5";
 var CURRENT_ANIME_ID = 0;
 var CURRENT_ANIME_ANILIST_ID = 0;
 var CURRENT_ANIME_TITLE = "";
 var CURRENT_ANIME_ROMAJI = "";
-var CURRENT_HIANIME_EPS = []; // hiAnime episode fallback data
-var CURRENT_PROVIDER = "AnimeSaturn";
 var CURRENT_TMDB_ID = "";
 var CURRENT_IMDB_ID = "";
-var PROVIDERS = ["hop", "bonk", "pewe", "bee", "moo", "kiwi", "ally"];
+var CURRENT_SEASON = 1;
 var _lastPage = "home";
-
-function apiGet(path, cb) {
-  var x = new XMLHttpRequest();
-  x.open("GET", API_BASE + path, true);
-  x.onreadystatechange = function() {
-    if (x.readyState === 4) {
-      if (x.status === 200) { try { cb(null, JSON.parse(x.responseText)); } catch(e) { cb("Parse error"); } }
-      else { cb("Error " + x.status); }
-    }
-  };
-  x.send();
-}
-
-function consumetGet(path, cb) {
-  var x = new XMLHttpRequest();
-  x.open("GET", CONSUMET_API + path, true);
-  x.onreadystatechange = function() {
-    if (x.readyState === 4) {
-      if (x.status === 200) { try { cb(null, JSON.parse(x.responseText)); } catch(e) { cb("Parse error"); } }
-      else { cb("Error " + x.status); }
-    }
-  };
-  x.send();
-}
+var _homeCardData = [];
+var _homeResults = [];
+var _lastAnilistSearch = [];
+var _episodeList = [];
 
 var ANILIST_CLIENT_ID = "43388";
 var ANILIST_TOKEN = localStorage.getItem("anilist_token") || "";
@@ -466,67 +435,32 @@ function loadHome() {
 function openHomeResult(idx) {
   var media = _homeResults[idx];
   if (!media) return;
-  CURRENT_ANIME_ANILIST_ID = media.id || 0;
-  var title = getTitle(media);
-  var c = document.getElementById("detail-content");
-  c.innerHTML = '<div class="loading">Looking for streams...</div>';
-  showPage("detail");
-  _lastPage = "detail";
-  apiGet("/search?query=" + encodeURIComponent(title) + "&per_page=5", function(err, data) {
-    if (!err && data.results && data.results.length) {
-      openDetail(data.results[0].id);
-    } else if (media.title && media.title.romaji && media.title.romaji !== title) {
-      apiGet("/search?query=" + encodeURIComponent(media.title.romaji) + "&per_page=5", function(err2, data2) {
-        if (!err2 && data2.results && data2.results.length) {
-          openDetail(data2.results[0].id);
-        } else {
-          showAnilistDetail(media);
-        }
-      });
-    } else {
-      showAnilistDetail(media);
-    }
-  });
+  showAnilistDetail(media);
 }
 
 function openHomeCard(idx) {
   var d = _homeCardData[idx];
   if (!d) return;
   if (d.anilistId) {
-    // Search AniList for full media object to show season tabs
     CURRENT_ANIME_ANILIST_ID = d.anilistId;
     anilistGraphQL("query ($id: Int) { Media(id: $id) { id averageScore idMal title { romaji english } coverImage { extraLarge large } description } }", { id: d.anilistId }, function(err, data) {
       if (!err && data && data.Media) {
         showAnilistDetail(data.Media);
       } else {
-        CURRENT_ANIME_TITLE = d.title;
-        CURRENT_ANIME_ROMAJI = "";
-        openDetail(d.id);
+        showAnilistDetail({ id: d.id, title: { english: d.title } });
       }
     });
   } else {
-    CURRENT_ANIME_TITLE = d.title;
-    CURRENT_ANIME_ROMAJI = "";
-    openDetail(d.id);
+    showAnilistDetail({ id: d.id, title: { english: d.title } });
   }
 }
 
 function openExternalResult(title) {
-  var c = document.getElementById("detail-content");
-  c.innerHTML = '<div class="loading">Looking for streams...</div>';
-  showPage("detail");
-  _lastPage = "detail";
   anilistGraphQL("query ($q: String) { Page(page: 1, perPage: 1) { media(search: $q, type: ANIME) { id averageScore idMal title { romaji english } coverImage { extraLarge large } description } } }", { q: title }, function(err, data) {
     if (!err && data && data.Page && data.Page.media && data.Page.media.length) {
       showAnilistDetail(data.Page.media[0]);
     } else {
-      apiGet("/search?query=" + encodeURIComponent(title) + "&per_page=5", function(err2, data2) {
-        if (!err2 && data2.results && data2.results.length) {
-          openDetail(data2.results[0].id);
-        } else {
-          c.innerHTML = '<div class="error">Could not find "' + title + '"</div>';
-        }
-      });
+      showAnilistDetail({ id: 0, title: { english: title } });
     }
   });
 }
@@ -560,71 +494,10 @@ function doSearch() {
   });
 }
 
-function openDetail(id) {
-  CURRENT_ANIME_ID = id;
-  if (!CURRENT_ANIME_ANILIST_ID) CURRENT_ANIME_ANILIST_ID = id;
-  _lastPage = "detail";
-  showPage("detail");
-  var c = document.getElementById("detail-content");
-  c.innerHTML = '<div class="loading">Loading...</div>';
-  CURRENT_EPISODES = [];
-  CURRENT_EPISODES_MAP = {};
-  CURRENT_HIANIME_EPS = [];
-  HIANIME_ID = "";
-  // Try Consumet directly (Miruro is dead)
-  var html = '<h1 class="detail-title">' + (CURRENT_ANIME_TITLE || "Loading...") + '</h1>';
-  html += '<div class="detail-gap"></div>';
-  html += '<div id="detail-ids" style="font-size:11px;color:#555;margin-top:4px;padding:0 12px"></div>';
-  html += '<div id="detail-ratings" style="padding:8px 12px;font-size:15px;font-weight:bold"></div>';
-  html += '<div id="season-tabs"></div>';
-  html += '<div class="section-title" style="padding-left:12px">Episodes</div>';
-  html += '<div id="ep-list"><div class="loading">Loading episodes...</div></div>';
-  html += '<div id="anilist-status"></div>';
-  c.innerHTML = html;
-  if (CURRENT_ANIME_ANILIST_ID) {
-    loadSeasonRelations(CURRENT_ANIME_ANILIST_ID);
-    loadExternalIds(CURRENT_ANIME_ANILIST_ID);
-  }
-  var tryTitle = CURRENT_ANIME_TITLE || "";
-  if (tryTitle) {
-    doConsumetSearch(tryTitle, function() {
-      if (CURRENT_ANIME_ROMAJI && CURRENT_ANIME_ROMAJI !== tryTitle) {
-        doConsumetSearch(CURRENT_ANIME_ROMAJI, function() {
-          document.getElementById("ep-list").innerHTML = '<div class="error">No episodes found</div>';
-        });
-      } else {
-        document.getElementById("ep-list").innerHTML = '<div class="error">No episodes found</div>';
-      }
-    });
-  }
-}
-
 function openAnilistResult(idx) {
   var media = _lastAnilistSearch[idx];
   if (!media) return;
-  CURRENT_ANIME_ANILIST_ID = media.id;
-  CURRENT_ANIME_TITLE = getTitle(media);
-  CURRENT_ANIME_ROMAJI = (media.title && media.title.romaji) || CURRENT_ANIME_TITLE;
-  var title = CURRENT_ANIME_TITLE;
-  var c = document.getElementById("detail-content");
-  c.innerHTML = '<div class="loading">Looking for streams...</div>';
-  showPage("detail");
-  _lastPage = "detail";
-  apiGet("/search?query=" + encodeURIComponent(title) + "&per_page=5", function(err, data) {
-    if (!err && data.results && data.results.length) {
-      openDetail(data.results[0].id);
-    } else if (media.title && media.title.romaji && media.title.romaji !== title) {
-      apiGet("/search?query=" + encodeURIComponent(media.title.romaji) + "&per_page=5", function(err2, data2) {
-        if (!err2 && data2.results && data2.results.length) {
-          openDetail(data2.results[0].id);
-        } else {
-          showAnilistDetail(media);
-        }
-      });
-    } else {
-      showAnilistDetail(media);
-    }
-  });
+  showAnilistDetail(media);
 }
 
 function showAnilistDetail(media) {
@@ -632,8 +505,6 @@ function showAnilistDetail(media) {
   CURRENT_ANIME_ANILIST_ID = media.id;
   CURRENT_ANIME_TITLE = getTitle(media);
   CURRENT_ANIME_ROMAJI = (media.title && media.title.romaji) || CURRENT_ANIME_TITLE;
-  CURRENT_HIANIME_EPS = [];
-  HIANIME_ID = "";
   _lastPage = "detail";
   showPage("detail");
   var c = document.getElementById("detail-content");
@@ -655,68 +526,176 @@ function showAnilistDetail(media) {
   html += '</div></div>';
   c.innerHTML = html;
   loadAnilistStatus(media.id);
-  loadSeasonRelations(media.id);
   loadExternalIds(media.id, media.averageScore, media.idMal);
-  doConsumetSearch(CURRENT_ANIME_TITLE, function() {
-    if (CURRENT_ANIME_ROMAJI && CURRENT_ANIME_ROMAJI !== CURRENT_ANIME_TITLE) {
-      doConsumetSearch(CURRENT_ANIME_ROMAJI, function() {
-        document.getElementById("ep-list").innerHTML = '<div class="error">No Consumet episodes found</div>';
-      });
-    } else {
-      document.getElementById("ep-list").innerHTML = '<div class="error">No Consumet episodes found</div>';
-    }
-  });
 }
 
-var _seasonList = [];
+// TMDB-based season tabs and episode listing
+var _tmdbSeasons = [];
 
-function loadSeasonRelations(mediaId) {
-  _seasonList = [];
-  anilistGraphQL("query ($id: Int) { Media(id: $id) { relations { edges { relationType node { id title { romaji english } type } } } } }", { id: mediaId }, function(err, data) {
-    if (err || !data.Media || !data.Media.relations) return;
-    var edges = data.Media.relations.edges || [];
-    var related = [];
-    for (var i = 0; i < edges.length; i++) {
-      var e = edges[i];
-      if (e.node.type !== "ANIME") continue;
-      var rt = e.relationType;
-      if (rt === "SEQUEL" || rt === "PREQUEL" || rt === "SIDE_STORY") {
-        var t = e.node.title.english || e.node.title.romaji || "";
-        var label = rt === "SEQUEL" ? "Season " + (related.length + 2) : rt === "PREQUEL" ? "Prequel" : "Side Story";
-        related.push({ id: e.node.id, title: t, label: label, relType: rt });
+function loadTmdbSeasons(tmdbId) {
+  _tmdbSeasons = [];
+  if (!tmdbId) return;
+  var xhr = new XMLHttpRequest();
+  xhr.open("GET", "https://api.themoviedb.org/3/tv/" + tmdbId + "?api_key=" + TMDB_KEY, true);
+  xhr.onload = function() {
+    if (xhr.status !== 200) return;
+    try {
+      var d = JSON.parse(xhr.responseText);
+      var seasons = d.seasons || [];
+      var valid = [];
+      for (var i = 0; i < seasons.length; i++) {
+        if (seasons[i].season_number > 0 && seasons[i].episode_count > 0) valid.push(seasons[i]);
       }
-    }
-    if (!related.length) return;
-    _seasonList = [{ id: mediaId, title: CURRENT_ANIME_TITLE, label: "Main", relType: "" }].concat(related);
-    var html = '<div class="season-row">';
-    for (var s = 0; s < _seasonList.length; s++) {
-      html += '<span class="season-btn' + (s === 0 ? " active" : "") + '" onclick="switchSeason(' + s + ')">' + _seasonList[s].label + '</span>';
-    }
-    html += '</div>';
-    document.getElementById("season-tabs").innerHTML = html;
-  });
+      if (!valid.length) return;
+      _tmdbSeasons = valid;
+      var html = '<div class="season-row">';
+      for (var s = 0; s < valid.length; s++) {
+        var label = valid[s].name || "Season " + valid[s].season_number;
+        html += '<span class="season-btn' + (s === 0 ? " active" : "") + '" onclick="switchTmdbSeason(' + s + ')">' + label + '</span>';
+      }
+      html += '</div>';
+      document.getElementById("season-tabs").innerHTML = html;
+      loadTmdbEpisodes(tmdbId, valid[0].season_number);
+    } catch (e) {}
+  };
+  xhr.send();
 }
 
-function switchSeason(idx) {
-  var s = _seasonList[idx];
+function switchTmdbSeason(idx) {
+  var s = _tmdbSeasons[idx];
   if (!s) return;
-  // Update title on page
-  var titleEl = document.querySelector(".detail-title");
-  if (titleEl) titleEl.textContent = s.title;
-  document.getElementById("ep-list").innerHTML = '<div class="loading">Loading ' + s.label + '...</div>';
-  CURRENT_ANIME_TITLE = s.title;
-  CURRENT_ANIME_ID = s.id;
-  CURRENT_ANIME_ANILIST_ID = s.id;
-  CURRENT_HIANIME_EPS = [];
-  HIANIME_ID = "";
-  loadExternalIds(s.id);
-  doConsumetSearch(s.title, function() {
-    document.getElementById("ep-list").innerHTML = '<div class="error">No episodes for this season</div>';
-  });
-  // Update active tab highlight
+  document.getElementById("ep-list").innerHTML = '<div class="loading">Loading ' + (s.name || "Season " + s.season_number) + '...</div>';
+  CURRENT_SEASON = s.season_number;
+  loadTmdbEpisodes(CURRENT_TMDB_ID, s.season_number);
   var btns = document.querySelectorAll(".season-btn");
   for (var b = 0; b < btns.length; b++) btns[b].className = "season-btn";
   if (btns[idx]) btns[idx].className = "season-btn active";
+}
+
+function loadTmdbEpisodes(tmdbId, seasonNum) {
+  if (!tmdbId) { document.getElementById("ep-list").innerHTML = '<div class="error">No TMDB ID for episode data</div>'; return; }
+  var xhr = new XMLHttpRequest();
+  xhr.open("GET", "https://api.themoviedb.org/3/tv/" + tmdbId + "/season/" + seasonNum + "?api_key=" + TMDB_KEY, true);
+  xhr.onload = function() {
+    var el = document.getElementById("ep-list");
+    if (xhr.status !== 200) { el.innerHTML = '<div class="error">Failed to load episodes</div>'; return; }
+    try {
+      var d = JSON.parse(xhr.responseText);
+      var eps = d.episodes || [];
+      if (!eps.length) { el.innerHTML = '<div class="error">No episodes</div>'; return; }
+      CURRENT_EPISODE_LIST = eps;
+      var tbl = '<table class="episode-table"><tr><th>#</th><th>Title</th><th>Aired</th></tr>';
+      for (var i = 0; i < eps.length; i++) {
+        var ep = eps[i];
+        var num = ep.episode_number;
+        var ttl = ep.name || "Episode " + num;
+        var aired = ep.air_date || "-";
+        tbl += '<tr onclick="playFromDetail(' + num + ')">';
+        tbl += '<td>' + num + '</td><td>' + ttl + '</td><td>' + aired + '</td></tr>';
+      }
+      el.innerHTML = tbl + '</table>';
+    } catch (e) { el.innerHTML = '<div class="error">Parse error</div>'; }
+  };
+  xhr.onerror = function() { document.getElementById("ep-list").innerHTML = '<div class="error">Network error</div>'; };
+  xhr.send();
+}
+
+var CURRENT_EPISODE_LIST = [];
+
+function playFromDetail(num) {
+  document.getElementById("player-video").style.display = "block";
+  showPage("player");
+  var v = document.getElementById("player-video");
+  v.pause(); v.src = ""; v.innerHTML = "";
+  if (window._hls) { window._hls.destroy(); window._hls = null; }
+  document.getElementById("player-info").innerHTML = CURRENT_ANIME_TITLE + " - Ep " + num;
+  document.getElementById("player-controls").innerHTML = '<span class="loading">Loading sources...</span>';
+  document.getElementById("player-subtitles").innerHTML = "";
+
+  var allSources = [];
+  var allTracks = [];
+
+  function addSource(src) {
+    for (var c = 0; c < allSources.length; c++) { if (allSources[c].url === src.url) return; }
+    allSources.push(src);
+  }
+  function addTracks(tracks) {
+    if (!tracks) return;
+    for (var t = 0; t < tracks.length; t++) { allTracks.push(tracks[t]); }
+  }
+  function renderSources() {
+    if (!allSources.length) {
+      document.getElementById("player-controls").innerHTML = '<div class="error">All sources failed</div>';
+      return;
+    }
+    CURRENT_STREAMS = allSources;
+    CURRENT_SUBTITLES = allTracks;
+    var controlsHtml = '<div class="c" style="width:auto"><label>Quality:</label></div><div class="c" style="width:auto">';
+    controlsHtml += '<select id="quality-select" onchange="changeQuality()">';
+    for (var q = 0; q < allSources.length; q++) {
+      var qlabel = allSources[q].quality || "Auto";
+      var typeLabel = allSources[q].type === "mp4" ? "MP4" : "HLS";
+      controlsHtml += '<option value="' + q + '"' + (q === 0 ? " selected" : "") + '>' + qlabel + " (" + typeLabel + ")</option>";
+    }
+    controlsHtml += '</select></div>';
+
+    if (allTracks.length) {
+      controlsHtml += '<div class="c" style="width:auto"><label>Subs:</label></div><div class="c" style="width:auto">';
+      controlsHtml += '<select onchange="changeSub(this.value)"><option value="">None</option>';
+      for (var j = 0; j < allTracks.length; j++) {
+        controlsHtml += '<option value="' + j + '">' + (allTracks[j].label || "Track " + (j+1)) + "</option>";
+      }
+      controlsHtml += '</select></div>';
+    }
+
+    controlsHtml += '<div class="c" style="width:auto"><label>Server:</label></div><div class="c" style="width:auto">';
+    controlsHtml += '<select id="server-select" onchange="switchStream(this.value)">';
+    for (var si = 0; si < allSources.length; si++) {
+      var sprov = allSources[si]._provider || "Source";
+      var sq = allSources[si].quality || "";
+      controlsHtml += '<option value="' + si + '"' + (si === 0 ? " selected" : "") + '>' + sprov + (sq ? " (" + sq + ")" : "") + '</option>';
+    }
+    controlsHtml += '</select></div>';
+
+    document.getElementById("player-controls").innerHTML = controlsHtml;
+    loadStream(allSources[0]);
+  }
+
+  // Only EzVidApi sources — direct HLS via TMDB ID
+  if (CURRENT_TMDB_ID) {
+    var EZ_PROVIDERS = ["vidlink", "vidnest", "vidrock"];
+    var loadedEz = 0;
+    for (var ezi = 0; ezi < EZ_PROVIDERS.length; ezi++) {
+      (function(tmdbEp, ezProv) {
+        var ezxhr = new XMLHttpRequest();
+        ezxhr.open("GET", "https://api.ezvidapi.com/tv/" + ezProv + "/" + CURRENT_TMDB_ID + "?season=" + CURRENT_SEASON + "&episode=" + tmdbEp);
+        ezxhr.onload = function() {
+          if (ezxhr.status === 200) {
+            try {
+              var ezdata = JSON.parse(ezxhr.responseText);
+              if (ezdata.stream_url) {
+                addSource({ url: ezdata.stream_url, type: "hls", quality: "HD", _provider: "Ez" + ezProv.charAt(0).toUpperCase() + ezProv.slice(1) });
+                if (ezdata.subtitles) addTracks(ezdata.subtitles);
+              }
+            } catch (e) {}
+          }
+          loadedEz++;
+          if (loadedEz === EZ_PROVIDERS.length) renderSources();
+        };
+        ezxhr.onerror = function() { loadedEz++; if (loadedEz === EZ_PROVIDERS.length) renderSources(); };
+        ezxhr.send();
+      })(num, EZ_PROVIDERS[ezi]);
+    }
+  } else {
+    renderSources();
+  }
+}
+
+function switchStream(val) {
+  var idx = parseInt(val, 10);
+  if (idx >= 0 && idx < CURRENT_STREAMS.length) {
+    loadStream(CURRENT_STREAMS[idx]);
+  }
 }
 
 function loadExternalIds(mediaId, anilistScore, malId) {
@@ -744,6 +723,7 @@ function loadExternalIds(mediaId, anilistScore, malId) {
       showDetailIds();
       fetchMalScore(malId);
       fetchTmdbRating(CURRENT_TMDB_ID);
+      if (CURRENT_TMDB_ID) loadTmdbSeasons(CURRENT_TMDB_ID);
     };
     if (CURRENT_TMDB_ID || CURRENT_IMDB_ID) {
       afterTmdb();
@@ -847,227 +827,19 @@ function showDetailIds() {
   idEl.innerHTML = parts.length ? parts.join(" &bull; ") : "";
 }
 
-function streamHiVideo(src) {
-  var v = document.getElementById("player-video");
-  v.pause(); v.src = ""; v.innerHTML = "";
-  if (window._hls) { window._hls.destroy(); window._hls = null; }
-  var url = src.url;
-  var ref = src._provider === "AnimeUnity" ? "https://www.animeunity.to" : src._provider === "AnimeSaturn" ? "https://www.animesaturn.cx" : "https://www.animesaturn.cx";
-  var proxyUrl = PROXY_BASE + "/proxy?url=" + encodeURIComponent(url) + "&referer=" + encodeURIComponent(ref);
-  v.crossOrigin = "anonymous";
-  if (src.isM3U8 || url.indexOf(".m3u8") > -1) {
-    if (v.canPlayType("application/vnd.apple.mpegurl")) {
-      v.onerror = function() { v.onerror = null; v.src = ""; tryNextStream(src); };
-      v.src = proxyUrl; v.load();
-    } else if (window.Hls && window.Hls.isSupported()) {
-      var hls = new window.Hls(); window._hls = hls;
-      hls.on(Hls.Events.ERROR, function(ev, data) {
-        if (data.fatal) { hls.destroy(); window._hls = null; tryNextStream(src); }
-      });
-      hls.loadSource(proxyUrl); hls.attachMedia(v);
-    } else {
-      document.getElementById("player-controls").innerHTML += '<br><span class="error">HLS not supported</span>';
-    }
-  } else {
-    v.src = proxyUrl; v.load();
-  }
-}
-
-function switchHiSource() {
-  var sel = document.getElementById("hi-server-select");
-  if (!sel) return;
-  var idx = parseInt(sel.value, 10);
-  var src = CURRENT_STREAMS[idx];
-  if (src) streamHiVideo(src);
-}
-
-function playEpisode(num) {
-  HI_FAILED = false;
-  var ifr = document.getElementById("player-embed");
-  ifr.src = ""; ifr.style.display = "none";
-  document.getElementById("player-video").style.display = "block";
-  var ep = CURRENT_EPISODES_MAP[num];
-  if (!ep) { playHianimeEpisode(num); return; }
-  var eid = ep.id || "";
-  var provider = ep._provider || "unknown";
-  showPage("player");
-  var v = document.getElementById("player-video");
-  v.pause(); v.src = ""; v.innerHTML = "";
-  if (window._hls) { window._hls.destroy(); window._hls = null; }
-  document.getElementById("player-info").innerHTML = CURRENT_ANIME_TITLE + " - Ep " + num;
-  document.getElementById("player-controls").innerHTML = '<span class="loading">Loading all sources...</span>';
-  document.getElementById("player-subtitles").innerHTML = "";
-
-  var allSources = [];
-  var allTracks = [];
-
-  function renderSources() {
-    if (!allSources.length) {
-      document.getElementById("player-controls").innerHTML = '<div class="error">All sources failed</div>';
-      return;
-    }
-    CURRENT_STREAMS = allSources;
-    CURRENT_SUBTITLES = allTracks;
-    var controlsHtml = '<div class="c" style="width:auto"><label>Quality:</label></div><div class="c" style="width:auto">';
-    controlsHtml += '<select id="quality-select" onchange="changeQuality()">';
-    for (var q = 0; q < allSources.length; q++) {
-      var qlabel = allSources[q].quality || "Auto";
-      var typeLabel = allSources[q].type === "mp4" ? "MP4" : "HLS";
-      controlsHtml += '<option value="' + q + '"' + (q === 0 ? " selected" : "") + ">" + qlabel + " (" + typeLabel + ")</option>";
-    }
-    controlsHtml += '</select></div>';
-
-    if (allTracks.length) {
-      controlsHtml += '<div class="c" style="width:auto"><label>Subs:</label></div><div class="c" style="width:auto">';
-      controlsHtml += '<select onchange="changeSub(this.value)"><option value="">None</option>';
-      for (var j = 0; j < allTracks.length; j++) {
-        controlsHtml += '<option value="' + j + '">' + (allTracks[j].label || "Track " + (j+1)) + "</option>";
-      }
-      controlsHtml += '</select></div>';
-    }
-
-    // Build server list: Miruro providers + Consumet sources + Embed sources
-    var curProv = ep._provider || "unknown";
-    controlsHtml += '<div class="c" style="width:auto"><label>Server:</label></div><div class="c" style="width:auto">';
-    controlsHtml += '<select id="server-select" onchange="switchServer(' + num + ')">';
-    var allProvs = CURRENT_EP_PROVIDERS[num] || [];
-    for (var sp = 0; sp < allProvs.length; sp++) {
-      var pn = allProvs[sp].provider;
-      var sel = pn === curProv ? " selected" : "";
-      controlsHtml += '<option value="p' + sp + '"' + sel + '>' + pn + '</option>';
-    }
-    for (var si = 0; si < allSources.length; si++) {
-      var sprov = allSources[si]._provider || "Provider";
-      var sq = allSources[si].quality || "";
-      var dup = false;
-      for (var d = 0; d < allProvs.length; d++) { if (allProvs[d].provider === sprov) { dup = true; break; } }
-      if (dup) continue;
-      controlsHtml += '<option value="s' + si + '">' + sprov + (sq ? " (" + sq + ")" : "") + '</option>';
-    }
-    controlsHtml += '</select></div>';
-
-    document.getElementById("player-controls").innerHTML = controlsHtml;
-    if (v.canPlayType("application/vnd.apple.mpegurl") === "") {
-      for (var i = 0; i < allSources.length; i++) {
-        if (allSources[i].type === "mp4" && allSources[i].url.indexOf("Authorization=") < 0) { loadStream(allSources[i]); return; }
-      }
-    }
-    loadStream(allSources[0]);
-  }
-
-  function addSource(src) {
-    for (var c = 0; c < allSources.length; c++) { if (allSources[c].url === src.url) return; }
-    allSources.push(src);
-  }
-  function addTracks(tracks) {
-    if (!tracks) return;
-    for (var t = 0; t < tracks.length; t++) { allTracks.push(tracks[t]); }
-  }
-
-  // 1. Miruro API
-  apiGet("/" + eid, function(err, data) {
-    if (!err && data && data.streams) {
-      for (var s = 0; s < data.streams.length; s++) {
-        var st = data.streams[s];
-        if (st.type !== "embed") {
-          st._provider = st._provider || provider;
-          addSource(st);
-        }
-      }
-      addTracks(data.subtitles);
-    }
-    // 1b. ezvidapi — direct HLS via TMDB ID
-    if (CURRENT_TMDB_ID) {
-      var EZ_PROVIDERS = ["vidlink", "vidnest", "vidrock"];
-      for (var ezi = 0; ezi < EZ_PROVIDERS.length; ezi++) {
-        (function(tmdbEp, ezProv) {
-          var ezxhr = new XMLHttpRequest();
-          ezxhr.open("GET", "https://api.ezvidapi.com/tv/" + ezProv + "/" + CURRENT_TMDB_ID + "?season=1&episode=" + tmdbEp);
-          ezxhr.onload = function() {
-            if (ezxhr.status === 200) {
-              try {
-                var ezdata = JSON.parse(ezxhr.responseText);
-                if (ezdata.stream_url) {
-                  addSource({ url: ezdata.stream_url, type: "hls", quality: "HD", _provider: "Ez" + ezProv.charAt(0).toUpperCase() + ezProv.slice(1) });
-                  if (ezdata.subtitles) addTracks(ezdata.subtitles);
-                }
-              } catch (e) {}
-            }
-          };
-          ezxhr.send();
-        })(num, EZ_PROVIDERS[ezi]);
-      }
-    }
-    // 2. Consumet _all=1 — search if needed
-    if (!HIANIME_ID) {
-      consumetGet("/search?q=" + encodeURIComponent(CURRENT_ANIME_TITLE) + "&per_page=5", function(err2, sd) {
-        if (!err2 && sd && sd.results && sd.results.length) {
-          HIANIME_ID = sd.results[0].id;
-          CURRENT_PROVIDER = sd._provider || sd.results[0]._provider || "AnimeSaturn";
-          consumetGet("/info?id=" + HIANIME_ID + "&provider=" + CURRENT_PROVIDER, function(err3, info) {
-            if (!err3 && info && info.episodes) CURRENT_HIANIME_EPS = info.episodes;
-            var cep = null;
-            for (var ci = 0; ci < (CURRENT_HIANIME_EPS || []).length; ci++) {
-              if (CURRENT_HIANIME_EPS[ci].number === num) { cep = CURRENT_HIANIME_EPS[ci]; break; }
-            }
-            if (cep && cep.id) {
-              consumetGet("/watch?id=" + cep.id + "&_all=1", function(err4, wd) {
-                if (!err4 && wd && wd.sources) {
-                  for (var ws = 0; ws < wd.sources.length; ws++) {
-                    wd.sources[ws]._provider = wd.sources[ws]._provider || "Consumet";
-                    addSource(wd.sources[ws]);
-                  }
-                  addTracks(wd.tracks);
-                }
-                renderSources();
-              });
-            } else {
-              renderSources();
-            }
-          });
-        } else {
-          renderSources();
-        }
-      });
-    } else {
-      // Already have HIANIME_ID, try to get consumet sources directly
-      var cep = null;
-      for (var ci = 0; ci < (CURRENT_HIANIME_EPS || []).length; ci++) {
-        if (CURRENT_HIANIME_EPS[ci].number === num) { cep = CURRENT_HIANIME_EPS[ci]; break; }
-      }
-      if (cep && cep.id) {
-        consumetGet("/watch?id=" + cep.id + "&_all=1", function(err4, wd) {
-          if (!err4 && wd && wd.sources) {
-            for (var ws = 0; ws < wd.sources.length; ws++) {
-              wd.sources[ws]._provider = wd.sources[ws]._provider || "Consumet";
-              addSource(wd.sources[ws]);
-            }
-            addTracks(wd.tracks);
-          }
-          renderSources();
-        });
-      } else {
-        renderSources();
-      }
-    }
-  });
-}
-
 function loadStream(stream) {
   var v = document.getElementById("player-video");
   v.pause(); v.src = ""; v.innerHTML = "";
   if (window._hls) { window._hls.destroy(); window._hls = null; }
 
   var url = stream.url;
-  var referer = stream.referer || CURRENT_REFERER || "";
-  var proxyUrl = PROXY_BASE + "/proxy?url=" + encodeURIComponent(url) + "&referer=" + encodeURIComponent(referer);
   v.crossOrigin = "anonymous";
 
   if (url.indexOf(".mp4") > -1 || stream.type === "mp4") {
     v.onerror = function() { v.onerror = null; v.src = ""; tryNextStream(stream); };
-    v.src = proxyUrl; v.load();
+    v.src = url; v.load();
   } else if (v.canPlayType("application/vnd.apple.mpegurl")) {
-    v.src = proxyUrl; v.load();
+    v.src = url; v.load();
   } else if (window.Hls && window.Hls.isSupported()) {
     var hls = new window.Hls(); window._hls = hls;
     hls.on(Hls.Events.ERROR, function(ev, data) {
@@ -1117,68 +889,7 @@ function changeSub(val) {
   v.appendChild(tr);
 }
 
-function switchServer(num) {
-  var sel = document.getElementById("server-select");
-  if (!sel) return;
-  var val = sel.value;
-  if (val.charAt(0) === "p") {
-    // Miruro provider switch — reload episode
-    var idx = parseInt(val.substring(1), 10);
-    var provs = CURRENT_EP_PROVIDERS[num] || [];
-    if (idx >= 0 && idx < provs.length) {
-      var p = provs[idx];
-      var ep = CURRENT_EPISODES_MAP[num];
-      if (ep) {
-        ep._provider = p.provider;
-        ep._category = p.category;
-        ep.id = p.id;
-        playEpisode(num);
-      }
-    }
-  } else if (val.charAt(0) === "s") {
-    // Direct stream switch
-    var idx = parseInt(val.substring(1), 10);
-    if (idx >= 0 && idx < CURRENT_STREAMS.length) {
-      loadStream(CURRENT_STREAMS[idx]);
-    }
-  }
-}
-
-function switchEmbed(num) {
-  var sel = document.getElementById("embed-select");
-  if (!sel) return;
-  var val = sel.value;
-  if (!val || val === "") {
-    document.getElementById("player-embed").style.display = "none";
-    document.getElementById("player-video").style.display = "block";
-    return;
-  }
-  var id = CURRENT_TMDB_ID || CURRENT_IMDB_ID;
-  if (!id) return;
-  var ep = CURRENT_EPISODES_MAP[num];
-  var season = 1;
-  var episode = num;
-  var url = "";
-  if (val === "vidsrc") {
-    if (CURRENT_TMDB_ID) url = "https://vidsrc.to/embed/tv/" + CURRENT_TMDB_ID + "/" + season + "/" + episode;
-    else if (CURRENT_IMDB_ID) url = "https://vidsrc.to/embed/tv/" + CURRENT_IMDB_ID + "/" + season + "/" + episode;
-  } else if (val === "2embed") {
-    if (CURRENT_IMDB_ID) url = "https://www.2embed.cc/embedtv/" + CURRENT_IMDB_ID + "&s=" + season + "&e=" + episode;
-    else if (CURRENT_TMDB_ID) url = "https://www.2embed.cc/embedtv/" + CURRENT_TMDB_ID + "&s=" + season + "&e=" + episode;
-  } else if (val === "multiembed") {
-    if (CURRENT_TMDB_ID) url = "https://multiembed.cc/embed/tv/" + CURRENT_TMDB_ID + "/" + season + "/" + episode;
-  }
-  if (!url) return;
-  document.getElementById("player-video").style.display = "none";
-  var ifr = document.getElementById("player-embed");
-  ifr.style.display = "block";
-  ifr.style.height = (window.innerHeight - 100) + "px";
-  ifr.src = url;
-}
-
 function closePlayer() {
-  document.getElementById("player-embed").src = "";
-  document.getElementById("player-embed").style.display = "none";
   document.getElementById("player-video").style.display = "block";
   var v = document.getElementById("player-video");
   v.pause(); v.src = "";
@@ -1186,181 +897,11 @@ function closePlayer() {
   showPage("detail");
 }
 
-var HI_FAILED = false; // prevents re-entering Consumet after failure
 var _lastAnilistSearch = [];
-
 var _homeResults = [];
-
-// HiAnime fallback
-var HIANIME_ID = "";
-function doConsumetSearch(query, fallback) {
-  consumetGet("/search?q=" + encodeURIComponent(query), function(err, data) {
-    if (err || !data.results || !data.results.length) {
-      if (fallback) { fallback(); return; }
-      document.getElementById("ep-list").innerHTML = '<div class="error">No Consumet episodes found</div>';
-      return;
-    }
-    HIANIME_ID = data.results[0].id;
-    CURRENT_PROVIDER = data._provider || data.results[0]._provider || "AnimeSaturn";
-    consumetGet("/info?id=" + HIANIME_ID + "&provider=" + CURRENT_PROVIDER, function(err2, info) {
-      var el = document.getElementById("ep-list");
-      if (err2 || !info.episodes || !info.episodes.length) {
-        el.innerHTML = '<div class="error">No episodes (provider has none)</div>';
-        return;
-      }
-      CURRENT_HIANIME_EPS = info.episodes;
-      var tbl = '<table class="episode-table"><tr><th>#</th><th>Title</th><th>Source</th></tr>';
-      for (var i = 0; i < info.episodes.length; i++) {
-        var ep = info.episodes[i];
-        var num = ep.number;
-        var ttl = "Episode " + num;
-        tbl += '<tr onclick="playHianimeEpisode(' + num + ')">';
-        tbl += '<td>' + num + '</td><td>' + ttl + '</td><td><span style="color:#38bdf8">Consumet</span></td></tr>';
-      }
-      el.innerHTML = tbl + '</table>';
-    });
-  });
-}
-
-function loadHianimeEpisodes() {
-  var el = document.getElementById("ep-list");
-  el.innerHTML = '<div class="loading">Loading episodes (Consumet)...</div>';
-  doConsumetSearch(CURRENT_ANIME_TITLE, function() {
-    if (CURRENT_ANIME_ROMAJI && CURRENT_ANIME_ROMAJI !== CURRENT_ANIME_TITLE) {
-      el.innerHTML = '<div class="loading">Trying alternate title...</div>';
-      doConsumetSearch(CURRENT_ANIME_ROMAJI, null);
-    } else {
-      el.innerHTML = '<div class="error">No Consumet episodes found</div>';
-    }
-  });
-}
-
-function playHianimeEpisode(num) {
-  HI_FAILED = false;
-  var ifr = document.getElementById("player-embed");
-  ifr.src = ""; ifr.style.display = "none";
-  document.getElementById("player-video").style.display = "block";
-  showPage("player");
-  var v = document.getElementById("player-video");
-  v.pause(); v.src = ""; v.innerHTML = "";
-  if (window._hls) { window._hls.destroy(); window._hls = null; }
-  document.getElementById("player-info").innerHTML = CURRENT_ANIME_TITLE + " - Ep " + num;
-  document.getElementById("player-controls").innerHTML = '<span class="loading">Loading sources...</span>';
-  document.getElementById("player-subtitles").innerHTML = "";
-
-  var ep = null;
-  for (var i = 0; i < CURRENT_HIANIME_EPS.length; i++) {
-    if (CURRENT_HIANIME_EPS[i].number === num) { ep = CURRENT_HIANIME_EPS[i]; break; }
-  }
-  if (!ep || !ep.id) {
-    document.getElementById("player-controls").innerHTML = '<div class="error">Episode not found</div>';
-    HI_FAILED = true;
-    return;
-  }
-
-  // Try Consumet _all=1 for multi-provider sources
-  // Also try Miruro API as fallback for more provider options
-  var allSources = [];
-  var allTracks = [];
-  var done = 0;
-
-  function renderSources() {
-    if (!allSources.length) {
-      var mu = "https://miruro.tv/search?q=" + encodeURIComponent(CURRENT_ANIME_TITLE);
-      document.getElementById("player-controls").innerHTML = 'All sources failed. <br><br><a class="ext-link" href="' + mu + '" target="_blank">Try on Miruro.to</a>';
-      HI_FAILED = true;
-      return;
-    }
-    CURRENT_STREAMS = allSources;
-    CURRENT_SUBTITLES = allTracks;
-
-    var controlsHtml = '<div class="c" style="width:auto"><label>Server:</label></div><div class="c" style="width:auto">';
-    controlsHtml += '<select id="server-select" onchange="switchServer(' + num + ')">';
-    // Miruro providers from CURRENT_EP_PROVIDERS
-    var allProvs = CURRENT_EP_PROVIDERS[num] || [];
-    for (var sp = 0; sp < allProvs.length; sp++) {
-      controlsHtml += '<option value="p' + sp + '">' + allProvs[sp].provider + '</option>';
-    }
-    // Consumet/stream sources
-    for (var si = 0; si < allSources.length; si++) {
-      var si_prov = allSources[si]._provider || "Provider";
-      var si_ql = allSources[si].quality || "";
-      var dup = false;
-      for (var d = 0; d < allProvs.length; d++) { if (allProvs[d].provider === si_prov) { dup = true; break; } }
-      if (dup) continue;
-      controlsHtml += '<option value="s' + si + '"' + (si === 0 && !allProvs.length ? " selected" : "") + '>' + si_prov + (si_ql ? " (" + si_ql + ")" : "") + '</option>';
-    }
-    if (CURRENT_TMDB_ID) {
-      controlsHtml += '<option value="e_vidsrc_tmdb">Vidsrc (TMDB)</option>';
-      controlsHtml += '<option value="e_2embed_tmdb">2Embed (TMDB)</option>';
-      controlsHtml += '<option value="e_multiembed_tmdb">MultiEmbed (TMDB)</option>';
-    }
-    if (CURRENT_IMDB_ID) {
-      controlsHtml += '<option value="e_vidsrc_imdb">Vidsrc (IMDb)</option>';
-      controlsHtml += '<option value="e_2embed_imdb">2Embed (IMDb)</option>';
-      controlsHtml += '<option value="e_multiembed_imdb">MultiEmbed (IMDb)</option>';
-    }
-    controlsHtml += '</select></div>';
-
-    if (allTracks.length) {
-      controlsHtml += '<div class="c" style="width:auto"><label>Subs:</label></div><div class="c" style="width:auto">';
-      controlsHtml += '<select onchange="changeSub(this.value)"><option value="">None</option>';
-      for (var j = 0; j < allTracks.length; j++) {
-        controlsHtml += '<option value="' + j + '">' + (allTracks[j].label || "Track " + (j+1)) + "</option>";
-      }
-      controlsHtml += '</select></div>';
-    }
-    document.getElementById("player-controls").innerHTML = controlsHtml;
-
-    loadStream(allSources[0]);
-  }
-
-  // Fetch from Consumet _all=1
-  consumetGet("/watch?id=" + ep.id + "&_all=1", function(err, data) {
-    done++;
-    if (!err && data && data.sources && data.sources.length) {
-      for (var s = 0; s < data.sources.length; s++) {
-        data.sources[s]._provider = data.sources[s]._provider || "Consumet";
-        allSources.push(data.sources[s]);
-      }
-      if (data.tracks) {
-        for (var t = 0; t < data.tracks.length; t++) allTracks.push(data.tracks[t]);
-      }
-    }
-    // Also try Miruro API
-    apiGet("/search?query=" + encodeURIComponent(CURRENT_ANIME_TITLE) + "&per_page=5", function(err2, sd) {
-      done++;
-      if (!err2 && sd && sd.results && sd.results.length) {
-        var mirId = sd.results[0].id;
-        HIANIME_ID = mirId;
-        apiGet("/" + mirId, function(err3, watchData) {
-          if (!err3 && watchData && watchData.streams && watchData.streams.length) {
-            for (var ws = 0; ws < watchData.streams.length; ws++) {
-              var w = watchData.streams[ws];
-              if (w.type !== "embed") {
-                w._provider = w._provider || sd.results[0]._provider || "Miruro";
-                var dup = false;
-                for (var xs = 0; xs < allSources.length; xs++) {
-                  if (allSources[xs].url === w.url) { dup = true; break; }
-                }
-                if (!dup) allSources.push(w);
-              }
-            }
-            if (watchData.subtitles) {
-              for (var ts = 0; ts < watchData.subtitles.length; ts++) allTracks.push(watchData.subtitles[ts]);
-            }
-          }
-          renderSources();
-        });
-      } else {
-        renderSources();
-      }
-    });
-  });
-}
 
 checkAnilistToken();
 loadHome();
 </script>
 </body></html>
-<!-- v2 -->
+<!-- v3 -->
