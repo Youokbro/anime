@@ -73,6 +73,7 @@ input,button{font-size:16px}
 
 #player-page{position:fixed;top:0;left:0;right:0;bottom:0;z-index:100;background:#000}
 #player-page video{width:100%;max-width:960px;display:block;margin:0 auto;background:#000}
+#player-embed{flex:1;background:#000}
 .player-top{background:#050505;padding:8px 12px;display:table;width:100%}
 .player-top .c{display:table-cell;vertical-align:middle}
 .player-info{font-size:13px;color:#eee;padding-left:10px}
@@ -138,6 +139,7 @@ input,button{font-size:16px}
     <div class="c player-info" id="player-info">Episode</div>
   </div>
   <video id="player-video" controls autoplay playsinline></video>
+  <iframe id="player-embed" style="display:none;width:100%;height:100%;border:none;background:#000"></iframe>
   <div id="player-controls" class="player-controls"></div>
   <div class="player-sub" id="player-subtitles"></div>
 </div>
@@ -157,6 +159,8 @@ var CURRENT_ANIME_TITLE = "";
 var CURRENT_ANIME_ROMAJI = "";
 var CURRENT_HIANIME_EPS = []; // hiAnime episode fallback data
 var CURRENT_PROVIDER = "AnimeSaturn";
+var CURRENT_TMDB_ID = "";
+var CURRENT_IMDB_ID = "";
 var PROVIDERS = ["hop", "bonk", "pewe", "bee", "moo", "kiwi", "ally"];
 var _lastPage = "home";
 
@@ -598,6 +602,7 @@ function showAnilistDetail(media) {
   c.innerHTML = html;
   loadAnilistStatus(media.id);
   loadSeasonRelations(media.id);
+  loadExternalIds(media.id);
   doConsumetSearch(CURRENT_ANIME_TITLE, function() {
     if (CURRENT_ANIME_ROMAJI && CURRENT_ANIME_ROMAJI !== CURRENT_ANIME_TITLE) {
       doConsumetSearch(CURRENT_ANIME_ROMAJI, function() {
@@ -656,6 +661,24 @@ function switchSeason(idx) {
   if (btns[idx]) btns[idx].className = "season-btn active";
 }
 
+function loadExternalIds(mediaId) {
+  CURRENT_TMDB_ID = "";
+  CURRENT_IMDB_ID = "";
+  anilistGraphQL("query ($id: Int) { Media(id: $id) { externalLinks { site url id } } }", { id: mediaId }, function(err, data) {
+    if (err || !data || !data.Media || !data.Media.externalLinks) return;
+    var links = data.Media.externalLinks;
+    for (var i = 0; i < links.length; i++) {
+      var site = links[i].site || "";
+      if (site === "Crunchyroll") continue;
+      var url = links[i].url || "";
+      var m = url.match(/themoviedb\.org\/(?:tv|movie)\/(\d+)/i);
+      if (m) { CURRENT_TMDB_ID = m[1]; }
+      var m2 = url.match(/imdb\.com\/title\/(tt\d+)/i);
+      if (m2) { CURRENT_IMDB_ID = m2[1]; }
+    }
+  });
+}
+
 function streamHiVideo(src) {
   var v = document.getElementById("player-video");
   v.pause(); v.src = ""; v.innerHTML = "";
@@ -692,6 +715,9 @@ function switchHiSource() {
 
 function playEpisode(num) {
   HI_FAILED = false;
+  var ifr = document.getElementById("player-embed");
+  ifr.src = ""; ifr.style.display = "none";
+  document.getElementById("player-video").style.display = "block";
   var ep = CURRENT_EPISODES_MAP[num];
   if (!ep) return;
   var eid = ep.id || "";
@@ -802,6 +828,17 @@ function playEpisode(num) {
       }
       controlsHtml += '</select></div>';
     }
+    if (CURRENT_TMDB_ID || CURRENT_IMDB_ID) {
+      controlsHtml += '<div class="c" style="width:auto"><label>Embed:</label></div><div class="c" style="width:auto">';
+      controlsHtml += '<select id="embed-select" onchange="switchEmbed(' + num + ')">';
+      controlsHtml += '<option value="">None</option>';
+      if (CURRENT_TMDB_ID) {
+        controlsHtml += '<option value="vidsrc">Vidsrc</option>';
+        controlsHtml += '<option value="2embed">2Embed</option>';
+        controlsHtml += '<option value="multiembed">MultiEmbed</option>';
+      }
+      controlsHtml += '</select></div>';
+    }
     controlsEl.innerHTML = controlsHtml;
     if (v.canPlayType("application/vnd.apple.mpegurl") === "") {
       for (var i = 0; i < playable.length; i++) {
@@ -899,7 +936,42 @@ function switchServer(num) {
   }
 }
 
+function switchEmbed(num) {
+  var sel = document.getElementById("embed-select");
+  if (!sel) return;
+  var val = sel.value;
+  if (!val || val === "") {
+    document.getElementById("player-embed").style.display = "none";
+    document.getElementById("player-video").style.display = "block";
+    return;
+  }
+  var id = CURRENT_TMDB_ID || CURRENT_IMDB_ID;
+  if (!id) return;
+  var ep = CURRENT_EPISODES_MAP[num];
+  var season = 1;
+  var episode = num;
+  var url = "";
+  if (val === "vidsrc") {
+    if (CURRENT_TMDB_ID) url = "https://vidsrc.to/embed/tv/" + CURRENT_TMDB_ID + "/" + season + "/" + episode;
+    else if (CURRENT_IMDB_ID) url = "https://vidsrc.to/embed/tv/" + CURRENT_IMDB_ID + "/" + season + "/" + episode;
+  } else if (val === "2embed") {
+    if (CURRENT_IMDB_ID) url = "https://www.2embed.cc/embedtv/" + CURRENT_IMDB_ID + "&s=" + season + "&e=" + episode;
+    else if (CURRENT_TMDB_ID) url = "https://www.2embed.cc/embedtv/" + CURRENT_TMDB_ID + "&s=" + season + "&e=" + episode;
+  } else if (val === "multiembed") {
+    if (CURRENT_TMDB_ID) url = "https://multiembed.cc/embed/tv/" + CURRENT_TMDB_ID + "/" + season + "/" + episode;
+  }
+  if (!url) return;
+  document.getElementById("player-video").style.display = "none";
+  var ifr = document.getElementById("player-embed");
+  ifr.style.display = "block";
+  ifr.style.height = (window.innerHeight - 100) + "px";
+  ifr.src = url;
+}
+
 function closePlayer() {
+  document.getElementById("player-embed").src = "";
+  document.getElementById("player-embed").style.display = "none";
+  document.getElementById("player-video").style.display = "block";
   var v = document.getElementById("player-video");
   v.pause(); v.src = "";
   if (window._hls) { window._hls.destroy(); window._hls = null; }
@@ -957,6 +1029,9 @@ function loadHianimeEpisodes() {
 
 function playHianimeEpisode(num) {
   HI_FAILED = false;
+  var ifr = document.getElementById("player-embed");
+  ifr.src = ""; ifr.style.display = "none";
+  document.getElementById("player-video").style.display = "block";
   showPage("player");
   var v = document.getElementById("player-video");
   v.pause(); v.src = ""; v.innerHTML = "";
