@@ -1127,8 +1127,8 @@ function playHianimeEpisode(num) {
   var v = document.getElementById("player-video");
   v.pause(); v.src = ""; v.innerHTML = "";
   if (window._hls) { window._hls.destroy(); window._hls = null; }
-  document.getElementById("player-info").innerHTML = CURRENT_ANIME_TITLE + " - Ep " + num + " (HiAnime)";
-  document.getElementById("player-controls").innerHTML = '<span class="loading">Loading HiAnime stream...</span>';
+  document.getElementById("player-info").innerHTML = CURRENT_ANIME_TITLE + " - Ep " + num;
+  document.getElementById("player-controls").innerHTML = '<span class="loading">Loading sources...</span>';
   document.getElementById("player-subtitles").innerHTML = "";
 
   var ep = null;
@@ -1136,45 +1136,45 @@ function playHianimeEpisode(num) {
     if (CURRENT_HIANIME_EPS[i].number === num) { ep = CURRENT_HIANIME_EPS[i]; break; }
   }
   if (!ep || !ep.id) {
-    document.getElementById("player-controls").innerHTML = '<div class="error">Episode not found on HiAnime</div>';
+    document.getElementById("player-controls").innerHTML = '<div class="error">Episode not found</div>';
     HI_FAILED = true;
     return;
   }
 
-  consumetGet("/watch?id=" + ep.id + "&_all=1", function(err, data) {
-    var controlsEl = document.getElementById("player-controls");
-    if (err || !data.sources || !data.sources.length) {
-      var miruroUrl = "https://miruro.tv/search?q=" + encodeURIComponent(CURRENT_ANIME_TITLE);
-      controlsEl.innerHTML = 'All sources failed. <br><br><a class="ext-link" href="' + miruroUrl + '" target="_blank">Try on Miruro.to</a>';
+  // Try Consumet _all=1 for multi-provider sources
+  // Also try Miruro API as fallback for more provider options
+  var allSources = [];
+  var allTracks = [];
+  var done = 0;
+
+  function renderSources() {
+    if (!allSources.length) {
+      var mu = "https://miruro.tv/search?q=" + encodeURIComponent(CURRENT_ANIME_TITLE);
+      document.getElementById("player-controls").innerHTML = 'All sources failed. <br><br><a class="ext-link" href="' + mu + '" target="_blank">Try on Miruro.to</a>';
       HI_FAILED = true;
       return;
     }
-    CURRENT_STREAMS = data.sources;
-    CURRENT_SUBTITLES = data.tracks || [];
-
-    var first = data.sources[0];
-    var firstUrl = first.url;
-    var firstRef = first._provider === "AnimeUnity" ? "https://www.animeunity.to" : first._provider === "AnimeSaturn" ? "https://www.animesaturn.cx" : "https://www.animesaturn.cx";
-    var proxyUrl = PROXY_BASE + "/proxy?url=" + encodeURIComponent(firstUrl) + "&referer=" + encodeURIComponent(firstRef);
+    CURRENT_STREAMS = allSources;
+    CURRENT_SUBTITLES = allTracks;
 
     var controlsHtml = '<div class="c" style="width:auto"><label>Server:</label></div><div class="c" style="width:auto">';
     controlsHtml += '<select id="hi-server-select" onchange="switchHiSource()">';
-    for (var si = 0; si < data.sources.length; si++) {
-      var si_prov = data.sources[si]._provider || "Provider";
-      var si_ql = data.sources[si].quality || "default";
+    for (var si = 0; si < allSources.length; si++) {
+      var si_prov = allSources[si]._provider || "Provider";
+      var si_ql = allSources[si].quality || "default";
       controlsHtml += '<option value="' + si + '"' + (si === 0 ? " selected" : "") + ">" + si_prov + " (" + si_ql + ")</option>";
     }
     controlsHtml += '</select></div>';
 
-    if (data.tracks && data.tracks.length) {
+    if (allTracks.length) {
       controlsHtml += '<div class="c" style="width:auto"><label>Subs:</label></div><div class="c" style="width:auto">';
       controlsHtml += '<select onchange="changeSub(this.value)"><option value="">None</option>';
-      for (var j = 0; j < data.tracks.length; j++) {
-        controlsHtml += '<option value="' + j + '">' + (data.tracks[j].label || "Track " + (j+1)) + "</option>";
+      for (var j = 0; j < allTracks.length; j++) {
+        controlsHtml += '<option value="' + j + '">' + (allTracks[j].label || "Track " + (j+1)) + "</option>";
       }
       controlsHtml += '</select></div>';
     }
-    controlsEl.innerHTML = controlsHtml;
+    document.getElementById("player-controls").innerHTML = controlsHtml;
 
     if (CURRENT_TMDB_ID || CURRENT_IMDB_ID) {
       var embHtml = '<div class="c" style="width:auto"><label>Embed:</label></div><div class="c" style="width:auto">';
@@ -1186,10 +1186,53 @@ function playHianimeEpisode(num) {
         embHtml += '<option value="multiembed">MultiEmbed</option>';
       }
       embHtml += '</select></div>';
-      controlsEl.innerHTML += embHtml;
+      document.getElementById("player-controls").innerHTML += embHtml;
     }
 
-    streamHiVideo(first);
+    streamHiVideo(allSources[0]);
+  }
+
+  // Fetch from Consumet _all=1
+  consumetGet("/watch?id=" + ep.id + "&_all=1", function(err, data) {
+    done++;
+    if (!err && data && data.sources && data.sources.length) {
+      for (var s = 0; s < data.sources.length; s++) {
+        data.sources[s]._provider = data.sources[s]._provider || "Consumet";
+        allSources.push(data.sources[s]);
+      }
+      if (data.tracks) {
+        for (var t = 0; t < data.tracks.length; t++) allTracks.push(data.tracks[t]);
+      }
+    }
+    // Also try Miruro API
+    apiGet("/search?query=" + encodeURIComponent(CURRENT_ANIME_TITLE) + "&per_page=5", function(err2, sd) {
+      done++;
+      if (!err2 && sd && sd.results && sd.results.length) {
+        var mirId = sd.results[0].id;
+        HIANIME_ID = mirId;
+        apiGet("/" + mirId, function(err3, watchData) {
+          if (!err3 && watchData && watchData.streams && watchData.streams.length) {
+            for (var ws = 0; ws < watchData.streams.length; ws++) {
+              var w = watchData.streams[ws];
+              if (w.type !== "embed") {
+                w._provider = w._provider || sd.results[0]._provider || "Miruro";
+                var dup = false;
+                for (var xs = 0; xs < allSources.length; xs++) {
+                  if (allSources[xs].url === w.url) { dup = true; break; }
+                }
+                if (!dup) allSources.push(w);
+              }
+            }
+            if (watchData.subtitles) {
+              for (var ts = 0; ts < watchData.subtitles.length; ts++) allTracks.push(watchData.subtitles[ts]);
+            }
+          }
+          renderSources();
+        });
+      } else {
+        renderSources();
+      }
+    });
   });
 }
 
