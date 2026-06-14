@@ -150,8 +150,7 @@ var CURRENT_SUBTITLES = [];
 var _failTimeout = null;
 var _episodeCache = {};
 var _currentSubIdx = -1;
-var TMDB_KEY = "0ff3dcace998b2fa393607f0af17a6a5";
-var OPENSUBTITLES_KEY = "KkRrsjYvWKEsREXgDETE8aBP4WktuXbH";
+
 var MIRURO_API = "https://miruro-api-navy.vercel.app";
 var PROXY_BASE = "https://anim-proxy.ahaantadi.workers.dev/";
 var CURRENT_ANIME_ID = 0;
@@ -572,7 +571,7 @@ function loadTmdbSeasons(tmdbId) {
   _tmdbSeasons = [];
   if (!tmdbId) return;
   var xhr = new XMLHttpRequest();
-  xhr.open("GET", "https://api.themoviedb.org/3/tv/" + tmdbId + "?api_key=" + TMDB_KEY, true);
+  xhr.open("GET", MIRURO_API + "/tmdb/tv/" + tmdbId, true);
   xhr.onload = function() {
     if (xhr.status !== 200) return;
     try {
@@ -611,7 +610,7 @@ function switchTmdbSeason(idx) {
 function loadTmdbEpisodes(tmdbId, seasonNum) {
   if (!tmdbId) { document.getElementById("ep-list").innerHTML = '<div class="error">No TMDB ID for episode data</div>'; return; }
   var xhr = new XMLHttpRequest();
-  xhr.open("GET", "https://api.themoviedb.org/3/tv/" + tmdbId + "/season/" + seasonNum + "?api_key=" + TMDB_KEY, true);
+  xhr.open("GET", MIRURO_API + "/tmdb/tv/" + tmdbId + "/season/" + seasonNum, true);
   xhr.onload = function() {
     var el = document.getElementById("ep-list");
     if (xhr.status !== 200) { el.innerHTML = '<div class="error">Failed to load episodes</div>'; return; }
@@ -852,10 +851,9 @@ function playFromDetail(num) {
   }
 
   // --- OpenSubtitles fallback subs (always try, no TMDB required) ---
-  if (OPENSUBTITLES_KEY) {
-    _pending++;
-    (function(epNum, season) {
-      var osUrl = "https://api.opensubtitles.com/api/v1/subtitles?languages=en&order_by=download_count&order_direction=desc&season_number=" + season + "&episode_number=" + epNum;
+  _pending++;
+  (function(epNum, season) {
+      var osUrl = MIRURO_API + "/subtitles/search?languages=en&season_number=" + season + "&episode_number=" + epNum;
       if (CURRENT_TMDB_ID) {
         osUrl += "&tmdb_id=" + CURRENT_TMDB_ID;
       } else if (CURRENT_IMDB_ID) {
@@ -865,7 +863,6 @@ function playFromDetail(num) {
       }
       var osx = new XMLHttpRequest();
       osx.open("GET", osUrl, true);
-      osx.setRequestHeader("Api-Key", OPENSUBTITLES_KEY);
       osx.setRequestHeader("User-Agent", "AnimeStream v1.0");
       osx.onload = function() {
         if (osx.status === 200) {
@@ -884,9 +881,8 @@ function playFromDetail(num) {
               if (fileId) {
                 _pending++;
                 var dlx = new XMLHttpRequest();
-                dlx.open("POST", "https://api.opensubtitles.com/api/v1/download", true);
+                dlx.open("POST", MIRURO_API + "/subtitles/download", true);
                 dlx.setRequestHeader("Content-Type", "application/json");
-                dlx.setRequestHeader("Api-Key", OPENSUBTITLES_KEY);
                 dlx.setRequestHeader("User-Agent", "AnimeStream v1.0");
                 dlx.onload = function() {
                   if (dlx.status === 200) {
@@ -912,7 +908,6 @@ function playFromDetail(num) {
       osx.onerror = function() { oneDone(); };
       osx.send();
     })(num, CURRENT_SEASON);
-  }
 
   // --- AniZone source (via Miruro-API scraper) ---
   if (CURRENT_ANIME_ANILIST_ID && !SUB_ONLY) {
@@ -1141,7 +1136,7 @@ function loadExternalIds(mediaId, anilistScore, malId) {
         if (tmdbId) {
           CURRENT_TMDB_ID = tmdbId;
           var xhr = new XMLHttpRequest();
-          xhr.open("GET", "https://api.themoviedb.org/3/tv/" + tmdbId + "/external_ids?api_key=" + TMDB_KEY);
+          xhr.open("GET", MIRURO_API + "/tmdb/tv/" + tmdbId + "/external_ids");
           xhr.onload = function() {
             if (xhr.status === 200) {
               var edata = JSON.parse(xhr.responseText);
@@ -1190,7 +1185,7 @@ function fetchMalScore(malId) {
 function fetchTmdbRating(tmdbId) {
   if (!tmdbId) return;
   var xhr = new XMLHttpRequest();
-  xhr.open("GET", "https://api.themoviedb.org/3/tv/" + tmdbId + "?api_key=" + TMDB_KEY, true);
+  xhr.open("GET", MIRURO_API + "/tmdb/tv/" + tmdbId, true);
   xhr.onload = function() {
     if (xhr.status !== 200) return;
     try {
@@ -1210,7 +1205,7 @@ function fetchTmdbRating(tmdbId) {
 
 function searchTMDB(title, callback) {
   var xhr = new XMLHttpRequest();
-  xhr.open("GET", "https://api.themoviedb.org/3/search/tv?api_key=" + TMDB_KEY + "&query=" + encodeURIComponent(title) + "&language=en-US");
+  xhr.open("GET", MIRURO_API + "/tmdb/search/tv?query=" + encodeURIComponent(title) + "&language=en-US");
   xhr.onload = function() {
     if (xhr.status === 200) {
       var data = JSON.parse(xhr.responseText);
