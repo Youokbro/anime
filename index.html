@@ -949,6 +949,69 @@ function playFromDetail(num) {
     })(num);
   }
 
+  // --- hianime.to source (via Miruro-API scraper) ---
+  if (CURRENT_ANIME_ANILIST_ID) {
+    _pending++;
+    (function(epNum) {
+      var hxhr = new XMLHttpRequest();
+      hxhr.open("GET", MIRURO_API + "/hianime/" + CURRENT_ANIME_ANILIST_ID + "/" + epNum, true);
+      hxhr.onload = function() {
+        if (hxhr.status === 200) {
+          try {
+            var hData = JSON.parse(hxhr.responseText);
+            var hStreams = hData.streams || [];
+            for (var s = 0; s < hStreams.length; s++) {
+              var st = hStreams[s];
+              addSource({
+                url: st.url,
+                type: hStreams[s].type || "hls",
+                quality: st.quality || "HD",
+                _provider: "HiAnime"
+              });
+            }
+            if (hData.subtitles) addTracks(hData.subtitles);
+          } catch (e) {}
+        }
+        oneDone();
+      };
+      hxhr.onerror = function() { oneDone(); };
+      hxhr.ontimeout = function() { oneDone(); };
+      hxhr.timeout = 12000;
+      hxhr.send();
+    })(num);
+  }
+
+  // --- Gogoanime source (via Miruro-API scraper) ---
+  if (CURRENT_ANIME_ANILIST_ID) {
+    _pending++;
+    (function(epNum) {
+      var gxhr = new XMLHttpRequest();
+      gxhr.open("GET", MIRURO_API + "/gogoanime/" + CURRENT_ANIME_ANILIST_ID + "/" + epNum, true);
+      gxhr.onload = function() {
+        if (gxhr.status === 200) {
+          try {
+            var gData = JSON.parse(gxhr.responseText);
+            var gStreams = gData.streams || [];
+            for (var s = 0; s < gStreams.length; s++) {
+              var st = gStreams[s];
+              addSource({
+                url: st.url,
+                type: st.type || "hls",
+                quality: st.quality || "HD",
+                _provider: "Gogoanime"
+              });
+            }
+          } catch (e) {}
+        }
+        oneDone();
+      };
+      gxhr.onerror = function() { oneDone(); };
+      gxhr.ontimeout = function() { oneDone(); };
+      gxhr.timeout = 12000;
+      gxhr.send();
+    })(num);
+  }
+
   if (_noRequests) {
     document.getElementById("player-controls").innerHTML = '<div class="error">No TMDB or AniList ID available</div>';
     return;
@@ -1289,7 +1352,7 @@ function closePlayer() {
 
 var _lastAnilistSearch = [];
 var _homeResults = [];
-var PROVIDER_PRIORITY = { "Bonk":1, "Ally":2, "Bee":3, "Kiwi":4, "AniZone":5, "EzVidlink":6, "EzVidnest":7, "EzVidrock":8, "Moo":9 };
+var PROVIDER_PRIORITY = { "Bonk":1, "Ally":2, "Bee":3, "Kiwi":4, "HiAnime":5, "Gogoanime":6, "AniZone":7, "EzVidlink":8, "EzVidnest":9, "EzVidrock":10, "Moo":11 };
 
 // Auto-track episode completion on AniList
 document.getElementById("player-video").addEventListener("ended", function() {
