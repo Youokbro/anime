@@ -162,6 +162,7 @@ var CURRENT_TMDB_ID = "";
 var CURRENT_IMDB_ID = "";
 var CURRENT_SEASON = 1;
 var CURRENT_EP_NUM = 0;
+var SUB_ONLY = localStorage.getItem("sub_only") !== "false";
 var _lastPage = "home";
 var _homeCardData = [];
 var _homeResults = [];
@@ -743,6 +744,11 @@ function nextEpisode() {
   playFromDetail(CURRENT_EP_NUM + 1);
 }
 
+function toggleSubOnly(on) {
+  SUB_ONLY = on;
+  localStorage.setItem("sub_only", on);
+}
+
 function playFromDetail(num) {
   CURRENT_EP_NUM = num;
   saveAnilistProgress(CURRENT_ANIME_ANILIST_ID, num);
@@ -831,8 +837,8 @@ function playFromDetail(num) {
   // --- fallback: if no requests fired, show error ---
   var _noRequests = true;
 
-  // --- EzVidApi sources (TMDB-based) ---
-  if (CURRENT_TMDB_ID) {
+  // --- EzVidApi sources (TMDB-based) — skipped in sub-only mode ---
+  if (CURRENT_TMDB_ID && !SUB_ONLY) {
     _noRequests = false;
     var EZ_PROVIDERS = ["vidlink", "vidnest", "vidrock"];
     for (var ezi = 0; ezi < EZ_PROVIDERS.length; ezi++) {
@@ -1038,7 +1044,8 @@ function playFromDetail(num) {
     }
     controlsHtml += '<div class="c" style="width:auto;white-space:nowrap"><button onclick="prevEpisode()" style="padding:4px 12px;background:#0a0a0a;color:#eee;border:1px solid #333;border-radius:4px;cursor:pointer;font-size:13px"' + (CURRENT_EP_NUM <= 1 ? ' disabled' : '') + '>&#9664; Prev</button></div>';
     controlsHtml += '<div class="c" style="width:auto;white-space:nowrap"><button onclick="nextEpisode()" style="padding:4px 12px;background:#0a0a0a;color:#eee;border:1px solid #333;border-radius:4px;cursor:pointer;font-size:13px">Next &#9654;</button></div>';
-    controlsHtml += '<div class="c" style="width:auto;white-space:nowrap"><label><input type="checkbox" id="autoskip-cb" onclick="_autoSkip=this.checked"' + (_autoSkip ? ' checked' : '') + ' style="vertical-align:middle"> AutoSkip</label></div>';
+    controlsHtml += '<div class="c" style="width:auto;white-space:nowrap"><label><input type="checkbox" id="autoskip-cb" onclick="_autoSkip=this.checked"' + (_autoSkip ? ' checked' : '') + ' style="vertical-align:middle"> Auto</label></div>';
+    controlsHtml += '<div class="c" style="width:auto;white-space:nowrap"><label><input type="checkbox" id="subonly-cb" onclick="toggleSubOnly(this.checked)"' + (SUB_ONLY ? ' checked' : '') + ' style="vertical-align:middle"> Sub</label></div>';
     document.getElementById("player-controls").innerHTML = controlsHtml;
     loadStream(allSources[0]);
     updatePendingIndicator();
@@ -1063,9 +1070,11 @@ function playFromDetail(num) {
       qs.innerHTML = buildQualityOptions();
       if (oldQ && parseInt(oldQ, 10) < allSources.length) { qs.value = oldQ; }
     }
-    // Restore AutoSkip checkbox state
+    // Restore checkbox states
     var cb = document.getElementById("autoskip-cb");
     if (cb) cb.checked = _autoSkip;
+    var scb = document.getElementById("subonly-cb");
+    if (scb) scb.checked = SUB_ONLY;
   }
 
   function updateSubsDropdown() {
