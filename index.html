@@ -322,11 +322,12 @@ function saveAnilistProgress(mediaId, episode) {
     if (err || !data || !data.Media) return;
     var entry = data.Media.mediaListEntry;
     var curProg = entry ? (entry.progress || 0) : 0;
-    if (episode > curProg) {
-      anilistGraphQL("mutation ($m: Int, $s: MediaListStatus, $p: Int) { SaveMediaListEntry(mediaId: $m, status: $s, progress: $p) { id status progress } }", { m: parseInt(mediaId, 10), s: "CURRENT", p: episode }, function(err2, data2) {
-        if (!err2) { loadAnilistSections(); loadAnilistStatus(mediaId); }
-      });
-    }
+    var curStatus = entry ? entry.status : null;
+    var newProg = episode > curProg ? episode : curProg;
+    var newStatus = curStatus === "COMPLETED" ? "COMPLETED" : "CURRENT";
+    anilistGraphQL("mutation ($m: Int, $s: MediaListStatus, $p: Int) { SaveMediaListEntry(mediaId: $m, status: $s, progress: $p) { id status progress } }", { m: parseInt(mediaId, 10), s: newStatus, p: newProg }, function(err2, data2) {
+      if (!err2) { loadAnilistSections(); loadAnilistStatus(mediaId); }
+    });
   });
 }
 
