@@ -756,8 +756,34 @@ function playFromDetail(num) {
     for (var t = 0; t < tracks.length; t++) { allTracks.push(tracks[t]); }
   }
 
+  function updatePendingIndicator() {
+    var ci = document.getElementById("checking-indicator");
+    if (_pending > 0) {
+      if (!ci) {
+        var pc = document.getElementById("player-controls");
+        if (pc) {
+          var cs = pc.getElementsByTagName("div");
+          var lastc = cs.length > 0 ? cs[cs.length - 1] : null;
+          if (lastc) {
+            var ciDiv = document.createElement("div");
+            ciDiv.id = "checking-indicator";
+            ciDiv.className = "c";
+            ciDiv.style.cssText = "width:auto";
+            ciDiv.innerHTML = '<span style="color:#888;font-size:11px">+' + _pending + '...</span>';
+            lastc.parentNode.insertBefore(ciDiv, lastc.nextSibling);
+          }
+        }
+      } else {
+        ci.innerHTML = '<span style="color:#888;font-size:11px">+' + _pending + '...</span>';
+      }
+    } else if (ci) {
+      ci.parentNode.removeChild(ci);
+    }
+  }
+
   function oneDone() {
     _pending--;
+    updatePendingIndicator();
     if (!_rendered && _pending <= 0) {
       if (allSources.length) {
         _rendered = true;
@@ -871,12 +897,20 @@ function playFromDetail(num) {
     })(num);
   }
 
-  // --- OpenSubtitles fallback subs ---
-  if (OPENSUBTITLES_KEY && CURRENT_TMDB_ID) {
+  // --- OpenSubtitles fallback subs (always try, no TMDB required) ---
+  if (OPENSUBTITLES_KEY) {
     _pending++;
-    (function(epNum, tmdbId, season) {
+    (function(epNum, season) {
+      var osUrl = "https://api.opensubtitles.com/api/v1/subtitles?languages=en&order_by=download_count&order_direction=desc&season_number=" + season + "&episode_number=" + epNum;
+      if (CURRENT_TMDB_ID) {
+        osUrl += "&tmdb_id=" + CURRENT_TMDB_ID;
+      } else if (CURRENT_IMDB_ID) {
+        osUrl += "&parent_imdb_id=" + CURRENT_IMDB_ID.replace(/^tt/i, "");
+      } else {
+        osUrl += "&query=" + encodeURIComponent(CURRENT_ANIME_TITLE);
+      }
       var osx = new XMLHttpRequest();
-      osx.open("GET", "https://api.opensubtitles.com/api/v1/subtitles?tmdb_id=" + tmdbId + "&season_number=" + season + "&episode_number=" + epNum + "&languages=en&order_by=download_count&order_direction=desc", true);
+      osx.open("GET", osUrl, true);
       osx.setRequestHeader("Api-Key", OPENSUBTITLES_KEY);
       osx.setRequestHeader("User-Agent", "AnimeStream v1.0");
       osx.onload = function() {
@@ -905,7 +939,7 @@ function playFromDetail(num) {
                     try {
                       var dl = JSON.parse(dlx.responseText);
                       if (dl.link) {
-                        allTracks.push({ file: dl.link, label: "OpenSubtitles (" + (attrs.language || "en") + ")" });
+                        allTracks.push({ file: dl.link, label: "English (OpenSubtitles)" });
                         updateSubsDropdown();
                       }
                     } catch(e) {}
@@ -923,7 +957,7 @@ function playFromDetail(num) {
       };
       osx.onerror = function() { oneDone(); };
       osx.send();
-    })(num, CURRENT_TMDB_ID, CURRENT_SEASON);
+    })(num, CURRENT_SEASON);
   }
 
   if (_noRequests) {
@@ -931,19 +965,27 @@ function playFromDetail(num) {
     return;
   }
 
+  function buildQualityOptions() {
+    var seen = {};
+    var html = '';
+    for (var qi = 0; qi < allSources.length; qi++) {
+      var q = allSources[qi].quality || "HD";
+      if (!seen[q]) {
+        seen[q] = true;
+        var sel = qi === 0 ? ' selected' : '';
+        html += '<option value="' + qi + '"' + sel + '>' + q + '</option>';
+      }
+    }
+    return html;
+  }
+
   function doRender() {
     CURRENT_STREAMS = allSources;
     CURRENT_SUBTITLES = allTracks;
 
     var controlsHtml = '';
-    if (allTracks.length) {
-      controlsHtml += '<div class="c" style="width:auto"><label>Subs:</label></div><div class="c" style="width:auto">';
-      controlsHtml += '<select id="sub-select" onchange="changeSub(this.value)"><option value="">None</option>';
-      for (var j = 0; j < allTracks.length; j++) {
-        controlsHtml += '<option value="' + j + '">' + (allTracks[j].label || "Track " + (j+1)) + "</option>";
-      }
-      controlsHtml += '</select></div>';
-    }
+    controlsHtml += '<div class="c" style="width:auto"><label>Quality:</label></div><div class="c" style="width:auto">';
+    controlsHtml += '<select id="quality-select" onchange="changeQuality()">' + buildQualityOptions() + '</select></div>';
     controlsHtml += '<div class="c" style="width:auto"><label>Server:</label></div><div class="c" style="width:auto">';
     controlsHtml += '<select id="server-select" onchange="switchStream(this.value)">';
     for (var si = 0; si < allSources.length; si++) {
@@ -952,12 +994,18 @@ function playFromDetail(num) {
       controlsHtml += '<option value="' + si + '"' + (si === 0 ? " selected" : "") + '>' + sprov + (sq ? " (" + sq + ")" : "") + '</option>';
     }
     controlsHtml += '</select></div>';
-    controlsHtml += '<div class="c" style="width:auto;white-space:nowrap"><label><input type="checkbox" onclick="_autoSkip=this.checked" style="vertical-align:middle"> AutoSkip</label></div>';
-    if (_pending > 0) {
-      controlsHtml += '<div class="c" style="width:auto"><span style="color:#888;font-size:11px">Checking ' + _pending + ' more...</span></div>';
+    if (allTracks.length) {
+      controlsHtml += '<div class="c" style="width:auto"><label>Subs:</label></div><div class="c" style="width:auto">';
+      controlsHtml += '<select id="sub-select" onchange="changeSub(this.value)"><option value="">None</option>';
+      for (var j = 0; j < allTracks.length; j++) {
+        controlsHtml += '<option value="' + j + '">' + (allTracks[j].label || "Track " + (j+1)) + "</option>";
+      }
+      controlsHtml += '</select></div>';
     }
+    controlsHtml += '<div class="c" style="width:auto;white-space:nowrap"><label><input type="checkbox" id="autoskip-cb" onclick="_autoSkip=this.checked"' + (_autoSkip ? ' checked' : '') + ' style="vertical-align:middle"> AutoSkip</label></div>';
     document.getElementById("player-controls").innerHTML = controlsHtml;
     loadStream(allSources[0]);
+    updatePendingIndicator();
   }
 
   function updateServerDropdown() {
@@ -972,29 +1020,16 @@ function playFromDetail(num) {
     }
     sel.innerHTML = html;
     if (curVal && parseInt(curVal, 10) < allSources.length) { sel.value = curVal; }
-    // Update checking indicator
-    var ci = document.getElementById("checking-indicator");
-    if (_pending > 0) {
-      if (!ci) {
-        var pc = document.getElementById("player-controls");
-        if (pc) {
-          var cs = pc.getElementsByTagName("div");
-          var lastc = cs.length > 0 ? cs[cs.length - 1] : null;
-          if (lastc) {
-            var ciDiv = document.createElement("div");
-            ciDiv.id = "checking-indicator";
-            ciDiv.className = "c";
-            ciDiv.style.cssText = "width:auto";
-            ciDiv.innerHTML = '<span style="color:#888;font-size:11px">+' + _pending + '...</span>';
-            lastc.parentNode.insertBefore(ciDiv, lastc.nextSibling);
-          }
-        }
-      } else {
-        ci.innerHTML = '<span style="color:#888;font-size:11px">+' + _pending + '...</span>';
-      }
-    } else if (ci) {
-      ci.parentNode.removeChild(ci);
+    // Update quality dropdown if new qualities appeared
+    var qs = document.getElementById("quality-select");
+    if (qs && allSources.length) {
+      var oldQ = qs.value;
+      qs.innerHTML = buildQualityOptions();
+      if (oldQ && parseInt(oldQ, 10) < allSources.length) { qs.value = oldQ; }
     }
+    // Restore AutoSkip checkbox state
+    var cb = document.getElementById("autoskip-cb");
+    if (cb) cb.checked = _autoSkip;
   }
 
   function updateSubsDropdown() {
