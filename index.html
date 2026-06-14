@@ -517,7 +517,7 @@ function doSearch() {
     var html = '<div class="section-title">Results</div><div class="card-table"><table><tr>';
     for (var i = 0; i < data.Page.media.length; i++) {
       var m = data.Page.media[i];
-      var img = m.coverImage ? (m.coverImage.extraLarge || m.coverImage.large || "") : "";
+      var img = getImg(m);
       var t = getTitle(m);
       html += '<td><div class="poster-card" onclick="openAnilistResult(' + i + ')">';
       if (img) html += '<img src="' + img + '" alt="" onerror="this.style.display=\'none\'">';
