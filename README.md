@@ -2,6 +2,12 @@
 
 A lightweight anime streaming app optimized for iPad Mini 1 and low-end devices.
 
+## 🌍 LIVE SITE
+
+### **https://youokbro.github.io/anime/**
+
+Visit now! No installation needed, works in Safari 📱
+
 ## Features
 
 - Search and browse anime from multiple sources (AniList, MAL, Kitsu)
