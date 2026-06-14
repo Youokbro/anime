@@ -162,7 +162,7 @@ var CURRENT_TMDB_ID = "";
 var CURRENT_IMDB_ID = "";
 var CURRENT_SEASON = 1;
 var CURRENT_EP_NUM = 0;
-var SUB_ONLY = localStorage.getItem("sub_only") !== "false";
+var SUB_ONLY = localStorage.getItem("sub_only") === "true";
 var _lastPage = "home";
 var _homeCardData = [];
 var _homeResults = [];
@@ -782,7 +782,12 @@ function playFromDetail(num) {
     if (parseQuality(src.quality) < 720) return;
     for (var c = 0; c < allSources.length; c++) { if (allSources[c].url === src.url) return; }
     allSources.push(src);
-    allSources.sort(function(a, b) { return (parseQuality(b.quality) - parseQuality(a.quality)) || ((a._provider || "").localeCompare(b._provider || "")); });
+    allSources.sort(function(a, b) {
+      var pa = PROVIDER_PRIORITY[a._provider] || 999;
+      var pb = PROVIDER_PRIORITY[b._provider] || 999;
+      if (pa !== pb) return pa - pb;
+      return parseQuality(b.quality) - parseQuality(a.quality);
+    });
     CURRENT_STREAMS = allSources;
     if (!_rendered) {
       _rendered = true;
@@ -1313,11 +1318,15 @@ function loadStream(stream) {
   v.addEventListener("playing", function() {
     if (_failTimeout) { clearTimeout(_failTimeout); _failTimeout = null; }
   }, { once: true });
+  v.addEventListener("timeupdate", function() {
+    if (v.currentTime > 0 && _failTimeout) { clearTimeout(_failTimeout); _failTimeout = null; }
+  }, { once: true });
 
   if (url.indexOf(".mp4") > -1 || stream.type === "mp4") {
     v.onerror = function() { if (_failTimeout) { clearTimeout(_failTimeout); _failTimeout = null; } v.onerror = null; v.src = ""; tryNextStream(stream, "error"); };
     v.src = url; v.load();
   } else if (v.canPlayType("application/vnd.apple.mpegurl")) {
+    v.onerror = function() { if (_failTimeout) { clearTimeout(_failTimeout); _failTimeout = null; } v.onerror = null; v.src = ""; tryNextStream(stream, "hls_error"); };
     v.src = url; v.load();
   } else if (window.Hls && window.Hls.isSupported()) {
     var hls = new window.Hls(); window._hls = hls;
