@@ -161,6 +161,7 @@ var CURRENT_ANIME_ROMAJI = "";
 var CURRENT_TMDB_ID = "";
 var CURRENT_IMDB_ID = "";
 var CURRENT_SEASON = 1;
+var CURRENT_EP_NUM = 0;
 var _lastPage = "home";
 var _homeCardData = [];
 var _homeResults = [];
@@ -644,25 +645,49 @@ function fetchSkipTimes(anilistId, episodeNum) {
   if (_skipInterval) { clearInterval(_skipInterval); _skipInterval = null; }
   var sb = document.getElementById("skip-btn");
   if (sb) { sb.parentNode.removeChild(sb); }
+  // Set estimated fallback and activate detection immediately
+  setEstimatedSkipTimes(episodeNum);
+  if (_skipTimes.op || _skipTimes.ed) setupSkipDetection();
   if (!anilistId) return;
   var x = new XMLHttpRequest();
   x.open("GET", "https://api.aniskip.com/v2/skip-times/" + anilistId + "/" + episodeNum + "?types=op&types=ed&episodeLength=0", true);
   x.onload = function() {
-    if (x.status !== 200) return;
-    try {
-      var d = JSON.parse(x.responseText);
-      if (d.found && d.results) {
-        _skipTimes = {};
-        for (var i = 0; i < d.results.length; i++) {
-          var r = d.results[i];
-          if (r.skipType === "op") _skipTimes.op = r.interval;
-          else if (r.skipType === "ed") _skipTimes.ed = r.interval;
+    if (x.status === 200) {
+      try {
+        var d = JSON.parse(x.responseText);
+        if (d.found && d.results && d.results.length) {
+          _skipTimes = {};
+          for (var i = 0; i < d.results.length; i++) {
+            var r = d.results[i];
+            if (r.skipType === "op") _skipTimes.op = r.interval;
+            else if (r.skipType === "ed") _skipTimes.ed = r.interval;
+          }
+          if (_skipTimes.op || _skipTimes.ed) { setupSkipDetection(); }
         }
-        if (_skipTimes.op || _skipTimes.ed) setupSkipDetection();
-      }
-    } catch (e) {}
+      } catch (e) {}
+    }
   };
+  x.onerror = function() {};
   x.send();
+}
+
+function setEstimatedSkipTimes(episodeNum) {
+  _skipTimes = { op: { startTime: 0, endTime: 88 } };
+  // Try to get episode runtime from TMDB for outro skip
+  if (CURRENT_EPISODE_LIST && CURRENT_EPISODE_LIST.length) {
+    for (var ei = 0; ei < CURRENT_EPISODE_LIST.length; ei++) {
+      if (CURRENT_EPISODE_LIST[ei].episode_number === episodeNum) {
+        var epData = CURRENT_EPISODE_LIST[ei];
+        if (epData.runtime) {
+          var totalSec = epData.runtime * 60;
+          if (totalSec > 180) {
+            _skipTimes.ed = { startTime: totalSec - 90, endTime: totalSec };
+          }
+        }
+        break;
+      }
+    }
+  }
 }
 
 function setupSkipDetection() {
@@ -710,7 +735,16 @@ function doSkip() {
   if (sb) sb.parentNode.removeChild(sb);
 }
 
+function prevEpisode() {
+  if (CURRENT_EP_NUM > 1) playFromDetail(CURRENT_EP_NUM - 1);
+}
+
+function nextEpisode() {
+  playFromDetail(CURRENT_EP_NUM + 1);
+}
+
 function playFromDetail(num) {
+  CURRENT_EP_NUM = num;
   saveAnilistProgress(CURRENT_ANIME_ANILIST_ID, num);
   fetchSkipTimes(CURRENT_ANIME_ANILIST_ID, num);
   document.getElementById("player-video").style.display = "block";
@@ -1002,6 +1036,8 @@ function playFromDetail(num) {
       }
       controlsHtml += '</select></div>';
     }
+    controlsHtml += '<div class="c" style="width:auto;white-space:nowrap"><button onclick="prevEpisode()" style="padding:4px 12px;background:#0a0a0a;color:#eee;border:1px solid #333;border-radius:4px;cursor:pointer;font-size:13px"' + (CURRENT_EP_NUM <= 1 ? ' disabled' : '') + '>&#9664; Prev</button></div>';
+    controlsHtml += '<div class="c" style="width:auto;white-space:nowrap"><button onclick="nextEpisode()" style="padding:4px 12px;background:#0a0a0a;color:#eee;border:1px solid #333;border-radius:4px;cursor:pointer;font-size:13px">Next &#9654;</button></div>';
     controlsHtml += '<div class="c" style="width:auto;white-space:nowrap"><label><input type="checkbox" id="autoskip-cb" onclick="_autoSkip=this.checked"' + (_autoSkip ? ' checked' : '') + ' style="vertical-align:middle"> AutoSkip</label></div>';
     document.getElementById("player-controls").innerHTML = controlsHtml;
     loadStream(allSources[0]);
