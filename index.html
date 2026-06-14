@@ -1000,6 +1000,40 @@ function playFromDetail(num) {
     })(num, CURRENT_SEASON);
   }
 
+  // --- AniZone source (via Miruro-API scraper) ---
+  if (CURRENT_ANIME_ANILIST_ID) {
+    _pending++;
+    (function(epNum) {
+      var azxhr = new XMLHttpRequest();
+      azxhr.open("GET", MIRURO_API + "/anizone/" + CURRENT_ANIME_ANILIST_ID + "/" + epNum, true);
+      azxhr.onload = function() {
+        if (azxhr.status === 200) {
+          try {
+            var azData = JSON.parse(azxhr.responseText);
+            var azStreams = azData.streams || [];
+            for (var s = 0; s < azStreams.length; s++) {
+              var st = azStreams[s];
+              var url = st.url;
+              var proxied = PROXY_BASE + "?url=" + encodeURIComponent(url) + "&referer=" + encodeURIComponent("https://anizone.to/");
+              addSource({
+                url: proxied,
+                type: "hls",
+                quality: st.quality || "1080p",
+                _provider: "AniZone"
+              });
+            }
+            if (azData.subtitles) addTracks(azData.subtitles);
+          } catch (e) {}
+        }
+        oneDone();
+      };
+      azxhr.onerror = function() { oneDone(); };
+      azxhr.ontimeout = function() { oneDone(); };
+      azxhr.timeout = 12000;
+      azxhr.send();
+    })(num);
+  }
+
   if (_noRequests) {
     document.getElementById("player-controls").innerHTML = '<div class="error">No TMDB or AniList ID available</div>';
     return;
