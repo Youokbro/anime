@@ -1375,6 +1375,18 @@ function closePlayer() {
 var _lastAnilistSearch = [];
 var _homeResults = [];
 
+// Auto-track episode completion on AniList
+document.getElementById("player-video").addEventListener("ended", function() {
+  saveAnilistProgress(CURRENT_ANIME_ANILIST_ID, CURRENT_EP_NUM);
+  var total = CURRENT_EPISODE_LIST ? CURRENT_EPISODE_LIST.length : 0;
+  if (total && CURRENT_EP_NUM >= total && CURRENT_ANIME_ANILIST_ID) {
+    var muteData = { m: CURRENT_ANIME_ANILIST_ID, s: "COMPLETED" };
+    anilistGraphQL("mutation ($m: Int, $s: MediaListStatus) { SaveMediaListEntry(mediaId: $m, status: $s) { id status } }", muteData, function(e, d) { if (!e) { loadAnilistSections(); loadAnilistStatus(CURRENT_ANIME_ANILIST_ID); } });
+  } else if (total && CURRENT_EP_NUM < total) {
+    setTimeout(nextEpisode, 1500);
+  }
+});
+
 checkAnilistToken();
 loadHome();
 </script>
