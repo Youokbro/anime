@@ -1015,7 +1015,7 @@ function playFromDetail(num) {
   }
 
   // --- AniZone source (via Miruro-API scraper) ---
-  if (CURRENT_ANIME_ANILIST_ID) {
+  if (CURRENT_ANIME_ANILIST_ID && !SUB_ONLY) {
     _pending++;
     (function(epNum) {
       var azxhr = new XMLHttpRequest();
