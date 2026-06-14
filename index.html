@@ -1014,9 +1014,8 @@ function playFromDetail(num) {
             for (var s = 0; s < azStreams.length; s++) {
               var st = azStreams[s];
               var url = st.url;
-              var proxied = PROXY_BASE + "?url=" + encodeURIComponent(url) + "&referer=" + encodeURIComponent("https://anizone.to/");
               addSource({
-                url: proxied,
+                url: url,
                 type: "hls",
                 quality: st.quality || "1080p",
                 _provider: "AniZone"
@@ -1295,7 +1294,6 @@ function loadStream(stream) {
   if (_failTimeout) { clearTimeout(_failTimeout); _failTimeout = null; }
 
   var url = stream.url;
-  v.crossOrigin = "anonymous";
 
   _failTimeout = setTimeout(function() { tryNextStream(stream, "timeout"); }, 10000);
 
