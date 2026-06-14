@@ -604,10 +604,12 @@ function showAnilistDetail(media) {
   c.innerHTML = html;
   loadAnilistStatus(media.id);
   loadExternalIds(media.id, media.averageScore, media.idMal);
+  loadSeasonRelations(media.id);
 }
 
 // TMDB-based season tabs and episode listing
 var _tmdbSeasons = [];
+var _seasonAniMap = {}; // tmdbSeasonNum -> anilistId for multi-season shows
 
 function loadTmdbSeasons(tmdbId) {
   _tmdbSeasons = [];
@@ -638,11 +640,36 @@ function loadTmdbSeasons(tmdbId) {
   xhr.send();
 }
 
+function loadSeasonRelations(aniListId) {
+  if (!aniListId) return;
+  _seasonAniMap = {};
+  anilistGraphQL("query ($id: Int) { Media(id: $id) { relations { edges { relationType node { id title { romaji english } } } } } }",
+    { id: aniListId },
+    function(err, data) {
+      if (err || !data || !data.Media || !data.Media.relations) return;
+      var edges = data.Media.relations.edges || [];
+      for (var i = 0; i < edges.length; i++) {
+        if (edges[i].relationType === "SEQUEL") {
+          var node = edges[i].node;
+          var t = (node.title && node.title.romaji) || (node.title && node.title.english) || "";
+          var sm = t.match(/Season\s+(\d+)/i);
+          if (sm) _seasonAniMap[parseInt(sm[1], 10)] = node.id;
+        }
+      }
+    }
+  );
+}
+
 function switchTmdbSeason(idx) {
   var s = _tmdbSeasons[idx];
   if (!s) return;
   document.getElementById("ep-list").innerHTML = '<div class="loading">Loading ' + (s.name || "Season " + s.season_number) + '...</div>';
   CURRENT_SEASON = s.season_number;
+  // Update AniList ID for multi-season shows
+  if (_seasonAniMap && _seasonAniMap[CURRENT_SEASON] && _seasonAniMap[CURRENT_SEASON] !== CURRENT_ANIME_ANILIST_ID) {
+    CURRENT_ANIME_ANILIST_ID = _seasonAniMap[CURRENT_SEASON];
+    delete _episodeCache[CURRENT_ANIME_ANILIST_ID];
+  }
   loadTmdbEpisodes(CURRENT_TMDB_ID, s.season_number);
   var btns = document.querySelectorAll(".season-btn");
   for (var b = 0; b < btns.length; b++) btns[b].className = "season-btn";
