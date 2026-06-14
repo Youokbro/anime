@@ -1025,9 +1025,11 @@ function playFromDetail(num) {
           try {
             var azData = JSON.parse(azxhr.responseText);
             var azStreams = azData.streams || [];
+            var needProxy = !(v && v.canPlayType && v.canPlayType("application/vnd.apple.mpegurl"));
             for (var s = 0; s < azStreams.length; s++) {
               var st = azStreams[s];
               var url = st.url;
+              if (needProxy) url = MIRURO_API + "/az-proxy?url=" + encodeURIComponent(url);
               addSource({
                 url: url,
                 type: "hls",
