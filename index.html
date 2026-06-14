@@ -828,6 +828,14 @@ function playFromDetail(num) {
     if (!_rendered && _pending <= 0) {
       if (allSources.length) {
         _rendered = true;
+        allSources.sort(function(a, b) {
+          var pa = PROVIDER_PRIORITY[a._provider] || 999;
+          var pb = PROVIDER_PRIORITY[b._provider] || 999;
+          if (pa !== pb) return pa - pb;
+          var _qma = a.quality && a.quality.match(/(\d+)/); var qa = _qma ? parseInt(_qma[1], 10) : 720;
+          var _qmb = b.quality && b.quality.match(/(\d+)/); var qb = _qmb ? parseInt(_qmb[1], 10) : 720;
+          return qb - qa;
+        });
         doRender();
       } else {
         document.getElementById("player-controls").innerHTML = '<div class="error">All sources failed</div>';
@@ -872,7 +880,7 @@ function playFromDetail(num) {
     (function(epNum) {
       function processEpData(epData) {
         try {
-          var provNames = ["kiwi", "ally", "bonk", "moo", "bee"];
+          var provNames = ["bonk", "ally", "bee", "kiwi", "moo"];
           for (var pi = 0; pi < provNames.length; pi++) {
             (function(provName) {
               var prov = epData.providers && epData.providers[provName];
@@ -1375,6 +1383,7 @@ function closePlayer() {
 
 var _lastAnilistSearch = [];
 var _homeResults = [];
+var PROVIDER_PRIORITY = { "Bonk":1, "Ally":2, "Bee":3, "Kiwi":4, "AniZone":5, "EzVidlink":6, "EzVidnest":7, "EzVidrock":8, "Moo":9 };
 
 // Auto-track episode completion on AniList
 document.getElementById("player-video").addEventListener("ended", function() {
