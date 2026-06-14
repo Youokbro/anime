@@ -12,19 +12,19 @@ input,button{font-size:16px}
 .page{display:none}
 .page.active{display:block}
 
-.nav{background:#050505;padding:10px 14px;display:table;width:100%;border-bottom:1px solid #222}
+.nav{background:#000;padding:10px 14px;display:table;width:100%;border-bottom:1px solid #222}
 .nav-cell{display:table-cell;vertical-align:middle}
-.nav-title{font-size:20px;font-weight:bold;color:#38bdf8}
-.nav-back{padding:5px 10px;background:none;color:#38bdf8;border:1px solid #38bdf8;border-radius:4px;cursor:pointer;font-size:14px}
+.nav-title{font-size:20px;font-weight:bold;color:#fff}
+.nav-back{padding:5px 10px;background:none;color:#fff;border:1px solid #fff;border-radius:4px;cursor:pointer;font-size:14px}
 
-.search-wrap{padding:12px 14px;background:#050505}
+.search-wrap{padding:12px 14px;background:#000}
 .search-row{display:table;width:100%}
 .search-row .c{display:table-cell;vertical-align:middle}
 .search-row input{width:100%;padding:10px 12px;border:1px solid #333;border-radius:4px;background:#111;color:#eee;outline:none}
-.search-row input:focus{border-color:#38bdf8}
-.search-row button{padding:10px 16px;margin-left:6px;border:none;border-radius:4px;background:#38bdf8;color:#000;font-weight:bold;cursor:pointer}
+.search-row input:focus{border-color:#fff}
+.search-row button{padding:10px 16px;margin-left:6px;border:none;border-radius:4px;background:#fff;color:#000;font-weight:bold;cursor:pointer}
 
-.section-title{padding:14px 12px 8px;font-size:16px;font-weight:bold;color:#38bdf8}
+.section-title{padding:14px 12px 8px;font-size:16px;font-weight:bold;color:#fff}
 .card-table{margin:0 6px 14px}
 .card-table table{width:100%;border-collapse:collapse}
 .card-table td{width:25%;padding:4px;text-align:center;vertical-align:top}
@@ -33,7 +33,7 @@ input,button{font-size:16px}
 .poster-card img{width:100%;display:block;min-height:140px;background:#111}
 .poster-card .label{padding:6px 4px;font-size:11px;color:#ccc;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 
-.detail-title{font-size:18px;color:#38bdf8;padding:12px 12px 0;margin:0}
+.detail-title{font-size:18px;color:#fff;padding:12px 12px 0;margin:0}
 .detail-gap{height:12px}
 .detail-desc{color:#aaa;font-size:13px;line-height:1.5;margin-bottom:12px}
 .detail-cover{width:100%;display:block;border-radius:4px;margin-bottom:10px}
@@ -64,36 +64,36 @@ input,button{font-size:16px}
 .episode-table th{background:#0a0a0a;padding:8px 10px;text-align:left;font-size:12px;color:#888;border-bottom:1px solid #1a1a1a}
 .episode-table td{padding:8px 10px;font-size:13px;border-bottom:1px solid #1a1a1a;cursor:pointer}
 .episode-table tr:nth-child(odd) td{background:#0a0a0a}
-.episode-table tr:nth-child(even) td{background:#050505}
-.episode-table tr td:first-child{width:40px;color:#38bdf8;text-align:center}
+.episode-table tr:nth-child(even) td{background:#000}
+.episode-table tr td:first-child{width:40px;color:#fff;text-align:center}
 
 .season-row{text-align:center;padding:8px 4px}
 .season-btn{display:inline-block;padding:5px 12px;margin:3px;border:1px solid #444;border-radius:4px;background:#0a0a0a;color:#aaa;cursor:pointer;font-size:11px}
-.season-btn.active{background:#38bdf8;color:#000;border-color:#38bdf8;font-weight:bold}
+.season-btn.active{background:#fff;color:#000;border-color:#fff;font-weight:bold}
 
 #player-page{position:fixed;top:0;left:0;right:0;bottom:0;z-index:100;background:#000}
 #player-page video{width:100%;max-width:960px;display:block;margin:0 auto;background:#000}
 video::-webkit-media-controls-toggle-closed-captions-button{display:none!important}
 video::-webkit-media-controls-closed-captions-button{display:none!important}
-.player-top{background:#050505;padding:8px 12px;display:table;width:100%}
+.player-top{background:#000;padding:8px 12px;display:table;width:100%}
 .player-top .c{display:table-cell;vertical-align:middle}
 .player-info{font-size:13px;color:#eee;padding-left:10px}
-.player-controls{text-align:center;padding:6px 8px;display:table;width:100%;background:#050505}
+.player-controls{text-align:center;padding:6px 8px;display:table;width:100%;background:#000}
 .player-controls .c{display:table-cell;vertical-align:middle;padding:0 4px}
 .player-controls select{padding:4px 8px;background:#111;color:#eee;border:1px solid #333;border-radius:4px;font-size:13px}
 .player-controls label{color:#aaa;font-size:12px}
 .player-sub{text-align:center;padding:6px}
 .player-sub select{padding:4px 8px;background:#111;color:#eee;border:1px solid #333;border-radius:4px;font-size:13px}
-.ext-link{display:inline-block;padding:10px 20px;background:#38bdf8;color:#000;border-radius:4px;font-weight:bold;text-decoration:none;margin-top:10px}
+.ext-link{display:inline-block;padding:10px 20px;background:#fff;color:#000;border-radius:4px;font-weight:bold;text-decoration:none;margin-top:10px}
 
 @keyframes pulse{0%,100%{opacity:.4}50%{opacity:1}}
 .loading{text-align:center;padding:30px;color:#666;animation:pulse 1.5s ease-in-out infinite}
 .error{text-align:center;padding:30px;color:#f44;font-size:13px}
 
 .btn-status{display:inline-block;padding:4px 10px;margin:2px;border:1px solid #333;border-radius:4px;background:#0a0a0a;color:#eee;cursor:pointer;font-size:12px;text-decoration:none}
-.btn-status.active{background:#38bdf8;color:#000;border-color:#38bdf8;font-weight:bold}
-.login-btn{display:inline-block;padding:4px 12px;background:#38bdf8;color:#000;border:none;border-radius:4px;cursor:pointer;font-weight:bold;font-size:12px;text-decoration:none}
-.avatar-img{width:30px;height:30px;border-radius:50%;vertical-align:middle;border:2px solid #38bdf8}
+.btn-status.active{background:#fff;color:#000;border-color:#fff;font-weight:bold}
+.login-btn{display:inline-block;padding:4px 12px;background:#fff;color:#000;border:none;border-radius:4px;cursor:pointer;font-weight:bold;font-size:12px;text-decoration:none}
+.avatar-img{width:30px;height:30px;border-radius:50%;vertical-align:middle;border:2px solid #fff}
 .nav-right{text-align:right}
 .logout-link{color:#888;font-size:11px;margin-left:6px;cursor:pointer;text-decoration:underline}
 </style> 
@@ -224,7 +224,7 @@ function anilistRefresh() {
   var nav = document.getElementById("anilist-nav");
   if (!nav) return;
   if (!ANILIST_TOKEN) {
-    nav.innerHTML = '<a class="login-btn" href="https://anilist.co/api/v2/oauth/authorize?client_id=43388&redirect_uri=https%3A%2F%2Fyouokbro.github.io%2Fanime&response_type=token">Login</a> <input id="token-input" type="text" placeholder="Paste token" style="width:70px;padding:3px 5px;background:#111;border:1px solid #333;border-radius:3px;color:#eee;font-size:10px;vertical-align:middle"> <button onclick="anilistPasteToken()" style="padding:3px 6px;background:#38bdf8;color:#000;border:none;border-radius:3px;cursor:pointer;font-size:10px">Set</button>';
+    nav.innerHTML = '<a class="login-btn" href="https://anilist.co/api/v2/oauth/authorize?client_id=43388&redirect_uri=https%3A%2F%2Fyouokbro.github.io%2Fanime&response_type=token">Login</a> <input id="token-input" type="text" placeholder="Paste token" style="width:70px;padding:3px 5px;background:#111;border:1px solid #333;border-radius:3px;color:#eee;font-size:10px;vertical-align:middle"> <button onclick="anilistPasteToken()" style="padding:3px 6px;background:#fff;color:#000;border:none;border-radius:3px;cursor:pointer;font-size:10px">Set</button>';
     return;
   }
   nav.innerHTML = '<span class="loading" style="font-size:11px;color:#888">Loading...</span>';
@@ -232,7 +232,7 @@ function anilistRefresh() {
     if (err || !data || !data.Viewer) {
       if (err === 401) {
         ANILIST_TOKEN = ""; localStorage.removeItem("anilist_token");
-        nav.innerHTML = '<a class="login-btn" href="https://anilist.co/api/v2/oauth/authorize?client_id=43388&redirect_uri=https%3A%2F%2Fyouokbro.github.io%2Fanime&response_type=token">Login</a> <input id="token-input" type="text" placeholder="Paste token" style="width:70px;padding:3px 5px;background:#111;border:1px solid #333;border-radius:3px;color:#eee;font-size:10px;vertical-align:middle"> <button onclick="anilistPasteToken()" style="padding:3px 6px;background:#38bdf8;color:#000;border:none;border-radius:3px;cursor:pointer;font-size:10px">Set</button>';
+        nav.innerHTML = '<a class="login-btn" href="https://anilist.co/api/v2/oauth/authorize?client_id=43388&redirect_uri=https%3A%2F%2Fyouokbro.github.io%2Fanime&response_type=token">Login</a> <input id="token-input" type="text" placeholder="Paste token" style="width:70px;padding:3px 5px;background:#111;border:1px solid #333;border-radius:3px;color:#eee;font-size:10px;vertical-align:middle"> <button onclick="anilistPasteToken()" style="padding:3px 6px;background:#fff;color:#000;border:none;border-radius:3px;cursor:pointer;font-size:10px">Set</button>';
       } else {
         nav.innerHTML = '<span style="font-size:11px;color:#888">Retry...</span>';
         setTimeout(function() { anilistRefresh(); }, 3000);
@@ -277,7 +277,7 @@ function loadAnilistSections() {
         if (img) html += '<img src="' + img + '" alt="" onerror="this.style.display=\"none\"">';
         else html += '<div style="height:140px;background:#111"></div>';
         html += '<div class="label">' + t + '</div>';
-        if (name === "CURRENT") html += '<div style="font-size:10px;color:#38bdf8">Ep ' + prog + '/' + ep + '</div>';
+        if (name === "CURRENT") html += '<div style="font-size:10px;color:#fff">Ep ' + prog + '/' + ep + '</div>';
         html += '</div></td>';
         if ((j + 1) % 4 === 0 && j < entries.length - 1) html += '</tr><tr>';
       }
@@ -638,105 +638,6 @@ function loadTmdbEpisodes(tmdbId, seasonNum) {
 
 var CURRENT_EPISODE_LIST = [];
 
-var _skipTimes = null;
-var _skipInterval = null;
-var _autoSkip = true;
-
-function fetchSkipTimes(anilistId, episodeNum) {
-  _skipTimes = null;
-  if (_skipInterval) { clearInterval(_skipInterval); _skipInterval = null; }
-  var sb = document.getElementById("skip-btn");
-  if (sb) { sb.parentNode.removeChild(sb); }
-  // Set estimated fallback and activate detection immediately
-  setEstimatedSkipTimes(episodeNum);
-  if (_skipTimes.op || _skipTimes.ed) setupSkipDetection();
-  if (!anilistId) return;
-  var x = new XMLHttpRequest();
-  x.open("GET", "https://api.aniskip.com/v2/skip-times/" + anilistId + "/" + episodeNum + "?types=op&types=ed&episodeLength=0", true);
-  x.onload = function() {
-    if (x.status === 200) {
-      try {
-        var d = JSON.parse(x.responseText);
-        if (d.found && d.results && d.results.length) {
-          _skipTimes = {};
-          for (var i = 0; i < d.results.length; i++) {
-            var r = d.results[i];
-            if (r.skipType === "op") _skipTimes.op = r.interval;
-            else if (r.skipType === "ed") _skipTimes.ed = r.interval;
-          }
-          if (_skipTimes.op || _skipTimes.ed) { setupSkipDetection(); }
-        }
-      } catch (e) {}
-    }
-  };
-  x.onerror = function() {};
-  x.send();
-}
-
-function setEstimatedSkipTimes(episodeNum) {
-  _skipTimes = { op: { startTime: 0, endTime: 88 } };
-  // Try to get episode runtime from TMDB for outro skip
-  if (CURRENT_EPISODE_LIST && CURRENT_EPISODE_LIST.length) {
-    for (var ei = 0; ei < CURRENT_EPISODE_LIST.length; ei++) {
-      if (CURRENT_EPISODE_LIST[ei].episode_number === episodeNum) {
-        var epData = CURRENT_EPISODE_LIST[ei];
-        if (epData.runtime) {
-          var totalSec = epData.runtime * 60;
-          if (totalSec > 180) {
-            _skipTimes.ed = { startTime: totalSec - 90, endTime: totalSec };
-          }
-        }
-        break;
-      }
-    }
-  }
-}
-
-function setupSkipDetection() {
-  if (_skipInterval) clearInterval(_skipInterval);
-  _skipInterval = setInterval(function() {
-    var v = document.getElementById("player-video");
-    if (!v || !v.src) return;
-    var t = v.currentTime;
-    var skipContainer = document.getElementById("player-subtitles");
-    var sb = document.getElementById("skip-btn");
-    var skipType = null;
-    if (_skipTimes.op && t >= _skipTimes.op.startTime && t < _skipTimes.op.endTime) skipType = "op";
-    else if (_skipTimes.ed && t >= _skipTimes.ed.startTime && t < _skipTimes.ed.endTime) skipType = "ed";
-
-    if (_autoSkip && skipType && _skipTimes[skipType]) {
-      v.currentTime = _skipTimes[skipType].endTime;
-      return;
-    }
-
-    if (skipType) {
-      if (!sb) {
-        var div = document.createElement("div");
-        div.id = "skip-btn";
-        div.style.cssText = "text-align:center;padding:6px";
-        var label = skipType === "op" ? "Skip Intro" : "Skip Outro";
-        div.innerHTML = '<button onclick="doSkip()" style="padding:8px 18px;background:#38bdf8;color:#000;border:none;border-radius:4px;font-weight:bold;font-size:14px;cursor:pointer">' + label + '</button>';
-        skipContainer.appendChild(div);
-      }
-    } else {
-      if (sb) sb.parentNode.removeChild(sb);
-    }
-  }, 500);
-}
-
-function doSkip() {
-  var v = document.getElementById("player-video");
-  if (!v || !_skipTimes) return;
-  var t = v.currentTime;
-  if (_skipTimes.op && t >= _skipTimes.op.startTime && t < _skipTimes.op.endTime) {
-    v.currentTime = _skipTimes.op.endTime;
-  } else if (_skipTimes.ed && t >= _skipTimes.ed.startTime && t < _skipTimes.ed.endTime) {
-    v.currentTime = _skipTimes.ed.endTime;
-  }
-  var sb = document.getElementById("skip-btn");
-  if (sb) sb.parentNode.removeChild(sb);
-}
-
 function prevEpisode() {
   if (CURRENT_EP_NUM > 1) playFromDetail(CURRENT_EP_NUM - 1);
 }
@@ -753,7 +654,6 @@ function toggleSubOnly(on) {
 function playFromDetail(num) {
   CURRENT_EP_NUM = num;
   saveAnilistProgress(CURRENT_ANIME_ANILIST_ID, num);
-  fetchSkipTimes(CURRENT_ANIME_ANILIST_ID, num);
   document.getElementById("player-video").style.display = "block";
   showPage("player");
   var v = document.getElementById("player-video");
@@ -1093,7 +993,6 @@ function playFromDetail(num) {
     }
     controlsHtml += '<div class="c" style="width:auto;white-space:nowrap"><button onclick="prevEpisode()" style="padding:4px 12px;background:#0a0a0a;color:#eee;border:1px solid #333;border-radius:4px;cursor:pointer;font-size:13px"' + (CURRENT_EP_NUM <= 1 ? ' disabled' : '') + '>&#9664; Prev</button></div>';
     controlsHtml += '<div class="c" style="width:auto;white-space:nowrap"><button onclick="nextEpisode()" style="padding:4px 12px;background:#0a0a0a;color:#eee;border:1px solid #333;border-radius:4px;cursor:pointer;font-size:13px">Next &#9654;</button></div>';
-    controlsHtml += '<div class="c" style="width:auto;white-space:nowrap"><label><input type="checkbox" id="autoskip-cb" onclick="_autoSkip=this.checked"' + (_autoSkip ? ' checked' : '') + ' style="vertical-align:middle"> Auto</label></div>';
     controlsHtml += '<div class="c" style="width:auto;white-space:nowrap"><label><input type="checkbox" id="subonly-cb" onclick="toggleSubOnly(this.checked)"' + (SUB_ONLY ? ' checked' : '') + ' style="vertical-align:middle"> Sub</label></div>';
     document.getElementById("player-controls").innerHTML = controlsHtml;
     loadStream(allSources[0]);
@@ -1120,8 +1019,6 @@ function playFromDetail(num) {
       if (oldQ && parseInt(oldQ, 10) < allSources.length) { qs.value = oldQ; }
     }
     // Restore checkbox states
-    var cb = document.getElementById("autoskip-cb");
-    if (cb) cb.checked = _autoSkip;
     var scb = document.getElementById("subonly-cb");
     if (scb) scb.checked = SUB_ONLY;
   }
@@ -1222,7 +1119,7 @@ function fetchMalScore(malId) {
       var txt = ratEl.textContent || ratEl.innerText || "";
       txt = txt.replace(/MAL: [\d.]+/g, "").replace(/  \|  $/, "").replace(/\s*\|\s*/g, " | ");
       if (txt) txt += "  |  ";
-      ratEl.innerHTML = txt + '<span style="color:#38bdf8">MAL: ' + score + '</span>';
+      ratEl.innerHTML = txt + '<span style="color:#fff">MAL: ' + score + '</span>';
     } catch (e) {}
   };
   xhr.send();
@@ -1243,7 +1140,7 @@ function fetchTmdbRating(tmdbId) {
       var txt = ratEl.textContent || ratEl.innerText || "";
       txt = txt.replace(/TMDB: [\d.]+/g, "").replace(/  \|  $/, "").replace(/\s*\|\s*/g, " | ");
       if (txt) txt += "  |  ";
-      ratEl.innerHTML = txt + '<span style="color:#38bdf8">TMDB: ' + rating + '</span>';
+      ratEl.innerHTML = txt + '<span style="color:#fff">TMDB: ' + rating + '</span>';
     } catch (e) {}
   };
   xhr.send();
@@ -1386,9 +1283,7 @@ function closePlayer() {
   var v = document.getElementById("player-video");
   v.pause(); v.src = "";
   if (window._hls) { window._hls.destroy(); window._hls = null; }
-  if (_skipInterval) { clearInterval(_skipInterval); _skipInterval = null; }
   if (_failTimeout) { clearTimeout(_failTimeout); _failTimeout = null; }
-  _skipTimes = null;
   showPage("detail");
 }
 
