@@ -929,7 +929,7 @@ function playFromDetail(num) {
             for (var s = 0; s < azStreams.length; s++) {
               var st = azStreams[s];
               var url = st.url;
-              if (needProxy) url = PROXY_BASE + "?url=" + encodeURIComponent(url) + "&referer=" + encodeURIComponent("https://anizone.to/");
+              if (needProxy) url = MIRURO_API + "/az-proxy?url=" + encodeURIComponent(url);
               addSource({
                 url: url,
                 type: "hls",
