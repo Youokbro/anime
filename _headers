@@ -1,0 +1,21 @@
+/*
+  Cache-Control: public, max-age=3600
+  X-Content-Type-Options: nosniff
+  X-Frame-Options: SAMEORIGIN
+  X-XSS-Protection: 1; mode=block
+  Referrer-Policy: no-referrer-when-downgrade
+
+/index.html
+  Cache-Control: public, max-age=3600, s-maxage=3600
+  Content-Encoding: gzip
+
+/*.js
+  Cache-Control: public, max-age=604800
+  Content-Encoding: gzip
+
+/*.css
+  Cache-Control: public, max-age=604800
+  Content-Encoding: gzip
+
+/api/*
+  Cache-Control: public, max-age=300

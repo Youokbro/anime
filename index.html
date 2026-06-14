@@ -3,35 +3,47 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<meta name="description" content="AnimeStream - Watch anime with multiple source options">
+<meta name="theme-color" content="#000">
 <title>AnimeStream</title>
 <style>
 *{margin:0;padding:0;box-sizing:border-box}
-html,body{height:100%}
-body{background:#000;color:#eee;font-family:-apple-system,Helvetica,Arial,sans-serif;font-size:14px;overflow-x:hidden}
-input,button{font-size:16px}
+html,body{height:100%;width:100%}
+body{background:#000;color:#eee;font-family:-apple-system,Helvetica,Arial,sans-serif;font-size:14px;overflow-x:hidden;-webkit-user-select:none;user-select:none;-webkit-touch-callout:none}
+input,button{font-size:16px;-webkit-user-select:text;user-select:text}
 .page{display:none}
 .page.active{display:block}
+img{max-width:100%}
 
-.nav{background:#000;padding:10px 14px;display:table;width:100%;border-bottom:1px solid #222}
+.nav{background:#000;padding:10px 14px;display:table;width:100%;border-bottom:1px solid #222;will-change:transform}
 .nav-cell{display:table-cell;vertical-align:middle}
 .nav-title{font-size:20px;font-weight:bold;color:#fff}
-.nav-back{padding:5px 10px;background:none;color:#fff;border:1px solid #fff;border-radius:4px;cursor:pointer;font-size:14px}
+.nav-back{padding:5px 10px;background:none;color:#fff;border:1px solid #fff;border-radius:4px;cursor:pointer;font-size:14px;-webkit-touch-callout:default;-webkit-user-select:none;user-select:none}
+@media (max-width:1024px){
+  .nav-title{font-size:18px}
+  .nav-back{font-size:12px;padding:4px 8px}
+}
 
 .search-wrap{padding:12px 14px;background:#000}
 .search-row{display:table;width:100%}
 .search-row .c{display:table-cell;vertical-align:middle}
-.search-row input{width:100%;padding:10px 12px;border:1px solid #333;border-radius:4px;background:#111;color:#eee;outline:none}
+.search-row input{width:100%;padding:10px 12px;border:1px solid #333;border-radius:4px;background:#111;color:#eee;outline:none;font-size:16px}
 .search-row input:focus{border-color:#fff}
-.search-row button{padding:10px 16px;margin-left:6px;border:none;border-radius:4px;background:#fff;color:#000;font-weight:bold;cursor:pointer}
+.search-row button{padding:10px 16px;margin-left:6px;border:none;border-radius:4px;background:#fff;color:#000;font-weight:bold;cursor:pointer;min-height:44px}
+@media (max-width:600px){
+  .search-row button{padding:8px 12px;margin-left:4px;font-size:13px}
+}
 
 .section-title{padding:14px 12px 8px;font-size:16px;font-weight:bold;color:#fff}
 .card-table{margin:0 6px 14px}
 .card-table table{width:100%;border-collapse:collapse}
 .card-table td{width:25%;padding:4px;text-align:center;vertical-align:top}
-@media (max-width:480px){.card-table td{width:33.33%}}
-.poster-card{display:block;background:#0a0a0a;border-radius:4px;overflow:hidden;cursor:pointer;border:1px solid #1a1a1a}
-.poster-card img{width:100%;display:block;min-height:140px;background:#111}
-.poster-card .label{padding:6px 4px;font-size:11px;color:#ccc;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+@media (max-width:1024px){.card-table td{width:33.33%}}
+@media (max-width:600px){.card-table td{width:50%}}
+.poster-card{display:block;background:#0a0a0a;border-radius:4px;overflow:hidden;cursor:pointer;border:1px solid #1a1a1a;will-change:transform;transition:transform .2s}
+.poster-card:active{transform:scale(.98)}
+.poster-card img{width:100%;display:block;min-height:140px;background:#111;object-fit:cover}
+.poster-card .label{padding:6px 4px;font-size:11px;color:#ccc;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;line-height:1.2}
 
 .detail-title{font-size:18px;color:#fff;padding:12px 12px 0;margin:0}
 .detail-gap{height:12px}
@@ -48,13 +60,15 @@ input,button{font-size:16px}
 .detail-right{padding:0 12px 12px}
 }
 
-@media (min-width:768px) and (max-width:1023px){
-.detail-left{width:30%}
-.detail-right{width:70%}
-#player-page video{max-width:720px}
+@media (min-width:768px) and (max-width:1024px){
+.detail-left{width:40%}
+.detail-right{width:60%}
+#player-page video{max-width:100%;height:auto}
+.episode-table{font-size:12px}
+.episode-table td{padding:6px 8px}
 }
 
-@media (min-width:1024px){
+@media (min-width:1025px){
 .detail-cover{max-width:300px}
 .detail-left{width:30%}
 .detail-right{width:70%}
@@ -78,10 +92,16 @@ video::-webkit-media-controls-closed-captions-button{display:none!important}
 .player-top{background:#000;padding:8px 12px;display:table;width:100%}
 .player-top .c{display:table-cell;vertical-align:middle}
 .player-info{font-size:13px;color:#eee;padding-left:10px}
-.player-controls{text-align:center;padding:6px 8px;display:table;width:100%;background:#000}
-.player-controls .c{display:table-cell;vertical-align:middle;padding:0 4px}
-.player-controls select{padding:4px 8px;background:#111;color:#eee;border:1px solid #333;border-radius:4px;font-size:13px}
+.player-controls{text-align:center;padding:6px 8px;display:table;width:100%;background:#000;flex-wrap:wrap}
+.player-controls .c{display:table-cell;vertical-align:middle;padding:0 4px;white-space:nowrap}
+.player-controls select{padding:4px 8px;background:#111;color:#eee;border:1px solid #333;border-radius:4px;font-size:13px;-webkit-appearance:none;-moz-appearance:none;appearance:none}
 .player-controls label{color:#aaa;font-size:12px}
+.player-controls button{padding:4px 8px;background:#0a0a0a;color:#eee;border:1px solid #333;border-radius:4px;cursor:pointer;font-size:12px;min-height:32px}
+@media (max-width:1024px){
+  .player-controls .c{display:inline-block;padding:4px 3px}
+  .player-controls select{font-size:12px;padding:3px 6px}
+  .player-controls label{font-size:11px}
+}
 .player-sub{text-align:center;padding:6px}
 .player-sub select{padding:4px 8px;background:#111;color:#eee;border:1px solid #333;border-radius:4px;font-size:13px}
 .ext-link{display:inline-block;padding:10px 20px;background:#fff;color:#000;border-radius:4px;font-weight:bold;text-decoration:none;margin-top:10px}
@@ -96,8 +116,14 @@ video::-webkit-media-controls-closed-captions-button{display:none!important}
 .avatar-img{width:30px;height:30px;border-radius:50%;vertical-align:middle;border:2px solid #fff}
 .nav-right{text-align:right}
 .logout-link{color:#888;font-size:11px;margin-left:6px;cursor:pointer;text-decoration:underline}
-</style> 
-<script src="https://cdn.jsdelivr.net/npm/hls.js@latest"></script>
+</style>
+<script>
+// Dynamically load HLS.js for better performance
+var hlsScript = document.createElement('script');
+hlsScript.src = 'https://cdn.jsdelivr.net/npm/hls.js@latest/dist/hls.min.js';
+hlsScript.async = true;
+document.head.appendChild(hlsScript);
+</script>
 </head>
 <body>
 
@@ -150,6 +176,8 @@ var CURRENT_SUBTITLES = [];
 var _failTimeout = null;
 var _episodeCache = {};
 var _currentSubIdx = -1;
+var _apiCache = {}; // Add caching for API responses
+var _pendingRequests = {}; // Track pending requests to avoid duplicates
 
 var MIRURO_API = "https://miruro-api-navy.vercel.app";
 var PROXY_BASE = "https://anim-proxy.ahaantadi.workers.dev/";
@@ -167,10 +195,21 @@ var _homeCardData = [];
 var _homeResults = [];
 var _lastAnilistSearch = [];
 var _episodeList = [];
+var _catalogLoaded = false;
 
 var ANILIST_CLIENT_ID = "43388";
 var ANILIST_TOKEN = localStorage.getItem("anilist_token") || "";
 var ANILIST_USER = null;
+
+// API Cache helper
+function getCached(key) {
+  var cached = _apiCache[key];
+  if (cached && Date.now() - cached.time < 3600000) return cached.data; // 1 hour
+  return null;
+}
+function setCached(key, data) {
+  _apiCache[key] = { data: data, time: Date.now() };
+}
 
 function checkAnilistToken() {
   var h = window.location.hash;
@@ -380,42 +419,42 @@ function loadHome() {
   var queries = [
     { t: "Popular", q: "{ Page(page: 1, perPage: 20) { media(sort: POPULARITY_DESC, type: ANIME) { id averageScore idMal title { romaji english } coverImage { extraLarge } description } } }" }
   ];
-  var loaded = 0;
-  var total = 3; // AniList + MAL + Kitsu
-  function checkDone() {
-    loaded++;
-    if (loaded >= total && html) c.innerHTML = html;
-    else if (loaded >= total) c.innerHTML = html || '<div class="error">Failed to load catalogs</div>';
-  }
   var html = "";
-  for (var i = 0; i < queries.length; i++) {
-    (function(idx) {
-      anilistGraphQL(queries[idx].q, {}, function(err, data) {
-        loaded++;
-        if (!err && data && data.Page && data.Page.media) {
-          var items = data.Page.media;
-          var h = '<div class="section-title">' + queries[idx].t + '</div><div class="card-table"><table><tr>';
-          for (var j = 0; j < items.length; j++) {
-            var m = items[j];
-            var img = m.coverImage ? (m.coverImage.extraLarge || m.coverImage.large || "") : "";
-            var t = getTitle(m);
-            h += '<td><div class="poster-card" onclick="openHomeResult(' + _homeResults.length + ')">';
-            if (img) h += '<img src="' + img + '" alt="" onerror="this.style.display=\'none\'">';
-            else h += '<div style="height:140px;background:#111"></div>';
-            h += '<div class="label">' + t + '</div></div></td>';
-            if ((j + 1) % 4 === 0 && j < items.length - 1) h += '</tr><tr>';
-            _homeResults.push(m);
-          }
-          html += h + '</tr></table></div>';
-        }
-        if (loaded === queries.length) { checkDone(); }
-      });
-    })(i);
-  }
+  anilistGraphQL(queries[0].q, {}, function(err, data) {
+    if (!err && data && data.Page && data.Page.media) {
+      var items = data.Page.media;
+      var h = '<div class="section-title">' + queries[0].t + '</div><div class="card-table"><table><tr>';
+      for (var j = 0; j < items.length; j++) {
+        var m = items[j];
+        var img = m.coverImage ? (m.coverImage.extraLarge || m.coverImage.large || "") : "";
+        var t = getTitle(m);
+        h += '<td><div class="poster-card" onclick="openHomeResult(' + _homeResults.length + ')">';
+        if (img) h += '<img src="' + img + '" alt="" loading="lazy" onerror="this.style.display=\'none\'">';
+        else h += '<div style="height:140px;background:#111"></div>';
+        h += '<div class="label">' + t + '</div></div></td>';
+        if ((j + 1) % 4 === 0 && j < items.length - 1) h += '</tr><tr>';
+        _homeResults.push(m);
+      }
+      html += h + '</tr></table></div>';
+      c.innerHTML = html;
+      setTimeout(loadCatalogExtras, 1500);
+    } else {
+      c.innerHTML = '<div class="error">Failed to load catalogs</div>';
+    }
+  });
+}
+
+function loadCatalogExtras() {
+  if (_catalogLoaded) return;
+  _catalogLoaded = true;
+  var c = document.getElementById("catalog-sections");
+  var html = c.innerHTML || "";
+  
   // MAL Top Anime
   (function() {
     var x = new XMLHttpRequest();
     x.open("GET", "https://api.jikan.moe/v4/top/anime?limit=20", true);
+    x.timeout = 8000;
     x.onreadystatechange = function() {
       if (x.readyState !== 4) return;
       if (x.status === 200) {
@@ -426,23 +465,26 @@ function loadHome() {
             var img = d[j].images && d[j].images.jpg && (d[j].images.jpg.large_image_url || d[j].images.jpg.image_url) || "";
             var t = d[j].title || "";
             h += '<td><div class="poster-card" onclick="openExternalResult(\'' + t.replace(/'/g, "\\'") + '\')">';
-            if (img) h += '<img src="' + img + '" alt="" onerror="this.style.display=\'none\'">';
+            if (img) h += '<img src="' + img + '" alt="" loading="lazy" onerror="this.style.display=\'none\'">';
             else h += '<div style="height:140px;background:#111"></div>';
             h += '<div class="label">' + t + '</div></div></td>';
             if ((j + 1) % 4 === 0 && j < d.length - 1) h += '</tr><tr>';
           }
           html += h + '</tr></table></div>';
+          c.innerHTML = html;
         } catch(e) {}
       }
-      checkDone();
     };
+    x.onerror = function() {};
     x.send();
   })();
+  
   // Kitsu Trending
   (function() {
     var x = new XMLHttpRequest();
     x.open("GET", "https://kitsu.io/api/edge/trending/anime", true);
     x.setRequestHeader("Accept", "application/vnd.api+json");
+    x.timeout = 8000;
     x.onreadystatechange = function() {
       if (x.readyState !== 4) return;
       if (x.status === 200) {
@@ -454,16 +496,17 @@ function loadHome() {
             var img = attrs.posterImage && (attrs.posterImage.large || attrs.posterImage.original || "") || "";
             var t = attrs.canonicalTitle || attrs.titles && (attrs.titles.en || attrs.titles.en_jp) || "";
             h += '<td><div class="poster-card" onclick="openExternalResult(\'' + t.replace(/'/g, "\\'") + '\')">';
-            if (img) h += '<img src="' + img + '" alt="" onerror="this.style.display=\'none\'">';
+            if (img) h += '<img src="' + img + '" alt="" loading="lazy" onerror="this.style.display=\'none\'">';
             else h += '<div style="height:140px;background:#111"></div>';
             h += '<div class="label">' + t + '</div></div></td>';
             if ((j + 1) % 4 === 0 && j < d.length - 1) h += '</tr><tr>';
           }
           html += h + '</tr></table></div>';
+          c.innerHTML = html;
         } catch(e) {}
       }
-      checkDone();
     };
+    x.onerror = function() {};
     x.send();
   })();
 }
@@ -520,7 +563,7 @@ function doSearch() {
       var img = getImg(m);
       var t = getTitle(m);
       html += '<td><div class="poster-card" onclick="openAnilistResult(' + i + ')">';
-      if (img) html += '<img src="' + img + '" alt="" onerror="this.style.display=\'none\'">';
+      if (img) html += '<img src="' + img + '" alt="" loading="lazy" onerror="this.style.display=\'none\'">';
       else html += '<div style="height:140px;background:#111"></div>';
       html += '<div class="label">' + t + '</div></div></td>';
       if ((i + 1) % 4 === 0 && i < data.Page.media.length - 1) html += '</tr><tr>';
@@ -1360,8 +1403,34 @@ document.getElementById("player-video").addEventListener("ended", function() {
   }
 });
 
-checkAnilistToken();
-loadHome();
+// Memory optimization - clear caches periodically
+function clearOldCaches() {
+  var now = Date.now();
+  for (var key in _apiCache) {
+    if (now - _apiCache[key].time > 7200000) { // 2 hours
+      delete _apiCache[key];
+    }
+  }
+  // Limit episode cache size
+  var episodeCacheKeys = Object.keys(_episodeCache);
+  if (episodeCacheKeys.length > 50) {
+    for (var i = 0; i < episodeCacheKeys.length - 50; i++) {
+      delete _episodeCache[episodeCacheKeys[i]];
+    }
+  }
+}
+setInterval(clearOldCaches, 600000); // Every 10 minutes
+
+// Preload HLS script async for better performance
+if (document.readyState === 'loading') {
+  document.addEventListener('DOMContentLoaded', function() {
+    checkAnilistToken();
+    loadHome();
+  });
+} else {
+  checkAnilistToken();
+  loadHome();
+}
 </script>
 </body></html>
-<!-- v3 -->
+<!-- v4 - iPad Mini Optimized -->
