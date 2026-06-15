@@ -580,6 +580,7 @@ function openAnilistResult(idx) {
 function showAnilistDetail(media) {
   CURRENT_ANIME_ID = media.id;
   CURRENT_ANIME_ANILIST_ID = media.id;
+  _originalAniListId = media.id;
   CURRENT_ANIME_TITLE = getTitle(media);
   CURRENT_ANIME_ROMAJI = (media.title && media.title.romaji) || CURRENT_ANIME_TITLE;
   _lastPage = "detail";
@@ -609,7 +610,8 @@ function showAnilistDetail(media) {
 
 // TMDB-based season tabs and episode listing
 var _tmdbSeasons = [];
-var _seasonAniMap = {}; // tmdbSeasonNum -> anilistId for multi-season shows
+var _seasonAniMap = {};
+var _originalAniListId = 0;
 
 function loadTmdbSeasons(tmdbId) {
   _tmdbSeasons = [];
@@ -665,10 +667,9 @@ function switchTmdbSeason(idx) {
   if (!s) return;
   document.getElementById("ep-list").innerHTML = '<div class="loading">Loading ' + (s.name || "Season " + s.season_number) + '...</div>';
   CURRENT_SEASON = s.season_number;
-  // Update AniList ID for multi-season shows
-  if (_seasonAniMap && _seasonAniMap[CURRENT_SEASON] && _seasonAniMap[CURRENT_SEASON] !== CURRENT_ANIME_ANILIST_ID) {
-    CURRENT_ANIME_ANILIST_ID = _seasonAniMap[CURRENT_SEASON];
-    delete _episodeCache[CURRENT_ANIME_ANILIST_ID];
+  var newAniId = _seasonAniMap && _seasonAniMap[CURRENT_SEASON] ? _seasonAniMap[CURRENT_SEASON] : _originalAniListId;
+  if (newAniId !== CURRENT_ANIME_ANILIST_ID) {
+    CURRENT_ANIME_ANILIST_ID = newAniId;
   }
   loadTmdbEpisodes(CURRENT_TMDB_ID, s.season_number);
   var btns = document.querySelectorAll(".season-btn");
