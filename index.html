@@ -117,10 +117,10 @@ video::-webkit-media-controls-closed-captions-button{display:none!important}
 .logout-link{color:#888;font-size:11px;margin-left:6px;cursor:pointer;text-decoration:underline}
 </style>
 <script>
-// Dynamically load HLS.js for better performance
+// Load HLS.js
 var hlsScript = document.createElement('script');
 hlsScript.src = 'https://cdn.jsdelivr.net/npm/hls.js@latest/dist/hls.min.js';
-hlsScript.async = true;
+hlsScript.async = false;
 document.head.appendChild(hlsScript);
 </script>
 </head>
@@ -1361,15 +1361,24 @@ function loadStream(stream) {
     v.onerror = function() { if (_failTimeout) { clearTimeout(_failTimeout); _failTimeout = null; } v.onerror = null; v.src = ""; tryNextStream(stream, "error"); };
     v.src = url; v.load();
   } else if (window.Hls && window.Hls.isSupported()) {
-    var hls = new window.Hls(); window._hls = hls;
-    hls.on(Hls.Events.ERROR, function(ev, data) {
-      if (data.fatal) {
-        if (_failTimeout) { clearTimeout(_failTimeout); _failTimeout = null; }
-        hls.destroy(); window._hls = null;
-        tryNextStream(stream, "hls_error");
+    (function(s, u) {
+      function loadWithHls() {
+        if (window.Hls && window.Hls.isSupported()) {
+          var hls = new window.Hls(); window._hls = hls;
+          hls.on(Hls.Events.ERROR, function(ev, data) {
+            if (data.fatal) {
+              if (_failTimeout) { clearTimeout(_failTimeout); _failTimeout = null; }
+              hls.destroy(); window._hls = null;
+              tryNextStream(s, "hls_error");
+            }
+          });
+          hls.loadSource(u); hls.attachMedia(v);
+        } else {
+          setTimeout(loadWithHls, 200);
+        }
       }
-    });
-    hls.loadSource(url); hls.attachMedia(v);
+      loadWithHls();
+    })(stream, url);
   } else if (v.canPlayType("application/vnd.apple.mpegurl")) {
     v.onerror = function() { if (_failTimeout) { clearTimeout(_failTimeout); _failTimeout = null; } v.onerror = null; v.src = ""; tryNextStream(stream, "hls_error"); };
     v.src = url; v.load();
