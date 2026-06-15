@@ -887,11 +887,19 @@ function playFromDetail(num) {
                       if (url.indexOf(".m3u8") === -1 && url.indexOf(".mp4") === -1 && stype !== "hls" && stype !== "mp4") continue;
                       var streamReferer = (st.referer || "https://www.miruro.tv/");
                       var proxied = PROXY_BASE + "?url=" + encodeURIComponent(url) + "&referer=" + encodeURIComponent(streamReferer);
+                      var provNameCap = provName.charAt(0).toUpperCase() + provName.slice(1);
                       addSource({
                         url: proxied,
                         type: stype === "mp4" || url.indexOf(".mp4") > -1 ? "mp4" : "hls",
                         quality: st.quality || "HD",
-                        _provider: provName.charAt(0).toUpperCase() + provName.slice(1)
+                        _provider: provNameCap
+                      });
+                      // Also add direct URL as fallback for CORS-friendly CDNs (owocdn, etc.)
+                      addSource({
+                        url: url,
+                        type: stype === "mp4" || url.indexOf(".mp4") > -1 ? "mp4" : "hls",
+                        quality: st.quality || "HD",
+                        _provider: provNameCap + " D"
                       });
                     }
                     if (bData.subtitles) addTracks(bData.subtitles);
