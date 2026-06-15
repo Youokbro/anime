@@ -180,6 +180,7 @@ var _pendingRequests = {}; // Track pending requests to avoid duplicates
 
 var MIRURO_API = "https://miruro-api-navy.vercel.app";
 var PROXY_BASE = "https://anim-proxy-worker.ahaantadi.workers.dev/";
+var USE_PROXY = !document.createElement("video").canPlayType("application/vnd.apple.mpegurl");
 var CURRENT_ANIME_ID = 0;
 var CURRENT_ANIME_ANILIST_ID = 0;
 var CURRENT_ANIME_TITLE = "";
@@ -886,20 +887,13 @@ function playFromDetail(num) {
                       if (stype === "embed") continue;
                       if (url.indexOf(".m3u8") === -1 && url.indexOf(".mp4") === -1 && stype !== "hls" && stype !== "mp4") continue;
                       var streamReferer = (st.referer || "https://www.miruro.tv/");
-                      var proxied = PROXY_BASE + "?url=" + encodeURIComponent(url) + "&referer=" + encodeURIComponent(streamReferer);
+                      var actualUrl = USE_PROXY ? (PROXY_BASE + "?url=" + encodeURIComponent(url) + "&referer=" + encodeURIComponent(streamReferer)) : url;
                       var provNameCap = provName.charAt(0).toUpperCase() + provName.slice(1);
                       addSource({
-                        url: proxied,
+                        url: actualUrl,
                         type: stype === "mp4" || url.indexOf(".mp4") > -1 ? "mp4" : "hls",
                         quality: st.quality || "HD",
                         _provider: provNameCap
-                      });
-                      // Also add direct URL as fallback for CORS-friendly CDNs (owocdn, etc.)
-                      addSource({
-                        url: url,
-                        type: stype === "mp4" || url.indexOf(".mp4") > -1 ? "mp4" : "hls",
-                        quality: st.quality || "HD",
-                        _provider: provNameCap + " D"
                       });
                     }
                     if (bData.subtitles) addTracks(bData.subtitles);
