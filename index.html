@@ -1131,8 +1131,34 @@ function playFromDetail(num) {
     controlsHtml += '<div class="c" style="width:auto;white-space:nowrap"><button onclick="nextEpisode()" style="padding:4px 12px;background:#0a0a0a;color:#eee;border:1px solid #333;border-radius:4px;cursor:pointer;font-size:13px">Next &#9654;</button></div>';
     controlsHtml += '<div class="c" style="width:auto;white-space:nowrap"><label><input type="checkbox" id="subonly-cb" onclick="toggleSubOnly(this.checked)"' + (SUB_ONLY ? ' checked' : '') + ' style="vertical-align:middle"> Sub</label></div>';
     document.getElementById("player-controls").innerHTML = controlsHtml;
-    loadStream(allSources[0]);
     updatePendingIndicator();
+
+    // Race all streams — start the highest priority, probe the rest in parallel
+    var _raced = false;
+    var _firstStream = allSources[0];
+    loadStream(_firstStream);
+    for (var ri = 1; ri < allSources.length; ri++) {
+      (function(s) {
+        var xhr = new XMLHttpRequest();
+        xhr.open("HEAD", s.url, true);
+        xhr.timeout = 6000;
+        xhr.onload = function() {
+          if (_raced) return;
+          var ok = xhr.status >= 200 && xhr.status < 400;
+          if (xhr.status === 0 && !USE_PROXY) ok = true;
+          if (!ok) return;
+          var v = document.getElementById("player-video");
+          if (v && v.currentTime > 0) { _raced = true; return; }
+          if (!_failTimeout) { _raced = true; return; }
+          _raced = true;
+          _triedStreams = [];
+          loadStream(s);
+        };
+        xhr.onerror = function() {};
+        xhr.ontimeout = function() {};
+        xhr.send();
+      })(allSources[ri]);
+    }
   }
 
   function updateServerDropdown() {
