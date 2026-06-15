@@ -115,6 +115,11 @@ video::-webkit-media-controls-closed-captions-button{display:none!important}
 .torrent-item .meta{color:#888;font-size:11px;margin-top:3px}
 .torrent-item .seed{color:#4caf50;font-weight:bold}
 .torrent-panel .torrent-status{padding:15px;text-align:center;color:#aaa;font-size:13px}
+.torrent-panel .wt-hash{color:#666;font-size:10px;word-break:break-all;margin:6px 0}
+.torrent-panel .wt-bar-wrap{background:#222;border-radius:4px;height:8px;margin:8px 0;overflow:hidden}
+.torrent-panel .wt-bar-fill{height:100%;width:0%;background:#4caf50;border-radius:4px;transition:width .3s}
+.torrent-panel .wt-info{color:#888;font-size:11px;margin:3px 0}
+.torrent-panel .wt-info span{margin:0 8px}
 .error{text-align:center;padding:30px;color:#f44;font-size:13px}
 
 .btn-status{display:inline-block;padding:4px 10px;margin:2px;border:1px solid #333;border-radius:4px;background:#0a0a0a;color:#eee;cursor:pointer;font-size:12px;text-decoration:none}
@@ -1222,9 +1227,16 @@ function switchStream(val) {
 }
 
 var _wtClient = null;
+var _wtTorrent = null;
 function getWtClient() {
   if (!_wtClient) _wtClient = new WebTorrent();
   return _wtClient;
+}
+function killWtTorrent() {
+  if (_wtTorrent) {
+    try { _wtTorrent.destroy(); } catch(e) {}
+    _wtTorrent = null;
+  }
 }
 
 function openTorrentPanel() {
@@ -1233,6 +1245,7 @@ function openTorrentPanel() {
   var v = document.getElementById('player-video');
   v.pause(); v.src = '';
   if (window._hls) { window._hls.destroy(); window._hls = null; }
+  killWtTorrent();
   tp.style.display = 'block';
 
   tp.innerHTML = '<div class="torrent-status">Searching torrents...</div>';
@@ -1270,21 +1283,47 @@ function pickTorrent(idx) {
     document.getElementById('torrent-panel').innerHTML = '<div class="torrent-status">No magnet link available for this torrent</div>';
     return;
   }
-  document.getElementById('torrent-panel').innerHTML = '<div class="torrent-status">Connecting to peers via WebTorrent...<br><span style="font-size:11px;color:#666">' + t.title.replace(/</g, '&lt;') + '</span><br><span id="wt-progress" style="font-size:11px;color:#888"></span></div>';
+  killWtTorrent();
+  var hash = (t.magnet.match(/btih:([a-f0-9]+)/i) || [])[1] || 'unknown';
+  document.getElementById('torrent-panel').innerHTML =
+    '<div class="torrent-status">' +
+    '<div style="font-size:12px;color:#eee">' + t.title.replace(/</g, '&lt;') + '</div>' +
+    '<div class="wt-hash">' + hash.toUpperCase() + '</div>' +
+    '<div class="wt-bar-wrap"><div id="wt-bar-fill" class="wt-bar-fill"></div></div>' +
+    '<div class="wt-info"><span id="wt-pct">connecting...</span><span id="wt-speed">0 MB/s</span><span id="wt-peers">0 peers</span></div>' +
+    '</div>';
   var wt = getWtClient();
-  wt.add(t.magnet, { announce: ['wss://tracker.btorrent.xyz', 'wss://tracker.openwebtorrent.com', 'wss://tracker.fastcast.nz'] }, function(torrent) {
-    var progEl = document.getElementById('wt-progress');
-    torrent.on('download', function() {
-      if (progEl) progEl.textContent = Math.round(torrent.progress * 100) + '% (' + (torrent.downloadSpeed / 1e6).toFixed(1) + ' MB/s)';
-    });
+  _wtTorrent = wt.add(t.magnet, {
+    announce: ['wss://tracker.btorrent.xyz', 'wss://tracker.openwebtorrent.com', 'wss://tracker.fastcast.nz']
+  }, function(torrent) {
     var file = torrent.files.find(function(f) { return f.name.match(/\.(mp4|mkv|avi|mov|webm)$/i); });
     if (!file) file = torrent.files[0];
     if (!file) {
       document.getElementById('torrent-panel').innerHTML = '<div class="torrent-status">No video file found in torrent</div>';
       return;
     }
-    document.getElementById('torrent-panel').style.display = 'none';
+    var bar = document.getElementById('wt-bar-fill');
+    var pct = document.getElementById('wt-pct');
+    var spd = document.getElementById('wt-speed');
+    var prs = document.getElementById('wt-peers');
+    function upd() {
+      if (bar) bar.style.width = Math.round(torrent.progress * 100) + '%';
+      if (pct) pct.textContent = Math.round(torrent.progress * 100) + '%';
+      if (spd) spd.textContent = (torrent.downloadSpeed / 1e6).toFixed(1) + ' MB/s';
+      if (prs) prs.textContent = torrent.numPeers + ' peers' + (torrent.done ? ' (complete)' : '');
+    }
+    torrent.on('download', upd);
+    torrent.on('upload', upd);
+    torrent.on('done', function() {
+      upd();
+      if (bar) bar.style.width = '100%';
+      if (pct) pct.textContent = '100%';
+    });
     file.renderTo('video#player-video', { autoplay: true });
+    setTimeout(function() {
+      var el = document.getElementById('torrent-panel');
+      if (el) el.style.display = 'none';
+    }, 8000);
   });
 }
 
