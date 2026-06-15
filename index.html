@@ -1345,7 +1345,7 @@ function loadStream(stream) {
 
   var url = stream.url;
 
-  _failTimeout = setTimeout(function() { tryNextStream(stream, "timeout"); }, 10000);
+  _failTimeout = setTimeout(function() { tryNextStream(stream, "timeout"); }, 30000);
 
   var gotData = false;
   v.addEventListener("loadeddata", function() {
@@ -1388,7 +1388,7 @@ function loadStream(stream) {
           v.onerror = function() { if (_failTimeout) { clearTimeout(_failTimeout); _failTimeout = null; } v.onerror = null; v.src = ""; tryNextStream(s, "hls_error"); };
           v.src = u; v.load();
         } else if (!_hlsFallbackTimer) {
-          _hlsFallbackTimer = setTimeout(function() { _hlsStarted = true; _hlsFallbackTimer = null; tryNextStream(s, "timeout"); }, 10000);
+          _hlsFallbackTimer = setTimeout(function() { _hlsStarted = true; _hlsFallbackTimer = null; tryNextStream(s, "timeout"); }, 30000);
           setTimeout(loadWithHls, 200);
         }
       }
