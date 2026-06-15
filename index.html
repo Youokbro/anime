@@ -1252,30 +1252,51 @@ function openTorrentPanel() {
   tp.style.display = 'block';
 
   tp.innerHTML = '<div class="torrent-status">Searching torrents...</div>';
-  var query = encodeURIComponent(CURRENT_ANIME_TITLE + ' ' + CURRENT_EP_NUM);
-  fetch(TORRENT_API + '/torrent/search?q=' + query)
-    .then(function(r) { return r.json() })
-    .then(function(data) {
-      if (!data.torrents || data.torrents.length === 0) {
-        tp.innerHTML = '<div class="torrent-status">No torrents found</div>';
-        return;
-      }
-      var html = '';
-      for (var i = 0; i < data.torrents.length; i++) {
-        var t = data.torrents[i];
-        html += '<div class="torrent-item" onclick="pickTorrent(' + i + ')">';
-        html += '<div class="ttl">' + t.title.replace(/</g, '&lt;') + '</div>';
-        html += '<div class="meta">';
-        if (t.seeders > 0) html += '<span class="seed">▲ ' + t.seeders + '</span> ';
-        html += t.size + ' | ' + t.quality + ' | ' + t.source;
-        html += '</div></div>';
-      }
-      tp.innerHTML = html;
-      window._torrentResults = data.torrents;
-    })
-    .catch(function(e) {
-      tp.innerHTML = '<div class="torrent-status">Search failed: ' + e.message + '</div>';
-    });
+  var queries = [
+    CURRENT_ANIME_TITLE + ' ' + CURRENT_EP_NUM,
+    CURRENT_ANIME_TITLE + ' - ' + String(CURRENT_EP_NUM).padStart(2, '0'),
+    CURRENT_ANIME_TITLE + ' Episode ' + CURRENT_EP_NUM,
+    CURRENT_ANIME_TITLE + ' E' + String(CURRENT_EP_NUM).padStart(2, '0')
+  ];
+  var seen = {};
+  var allT = [];
+  var done = 0;
+  queries.forEach(function(q) {
+    fetch(TORRENT_API + '/torrent/search?q=' + encodeURIComponent(q))
+      .then(function(r) { return r.json() })
+      .then(function(data) {
+        if (data.torrents) {
+          for (var i = 0; i < data.torrents.length; i++) {
+            var t = data.torrents[i];
+            if (!seen[t.magnet]) {
+              seen[t.magnet] = true;
+              allT.push(t);
+            }
+          }
+        }
+      }).catch(function() {}).then(function() {
+        done++;
+        if (done === queries.length) {
+          allT.sort(function(a, b) { return b.seeders - a.seeders });
+          if (allT.length === 0) {
+            tp.innerHTML = '<div class="torrent-status">No torrents found</div>';
+            return;
+          }
+          var html = '';
+          for (var i = 0; i < allT.length; i++) {
+            var t = allT[i];
+            html += '<div class="torrent-item" onclick="pickTorrent(' + i + ')">';
+            html += '<div class="ttl">' + t.title.replace(/</g, '&lt;') + '</div>';
+            html += '<div class="meta">';
+            if (t.seeders > 0) html += '<span class="seed">▲ ' + t.seeders + '</span> ';
+            html += t.size + ' | ' + t.quality + ' | ' + t.source;
+            html += '</div></div>';
+          }
+          tp.innerHTML = html;
+          window._torrentResults = allT;
+        }
+      });
+  });
 }
 
 function pickTorrent(idx) {
