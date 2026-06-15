@@ -1221,8 +1221,8 @@ function switchStream(val) {
 }
 
 var _torrentTitle = '';
-function getBitportToken() {
-  return localStorage.getItem('bitport_token') || '';
+function getTorboxToken() {
+  return localStorage.getItem('torbox_token') || '';
 }
 function openTorrentPanel() {
   var tp = document.getElementById('torrent-panel');
@@ -1232,12 +1232,12 @@ function openTorrentPanel() {
   if (window._hls) { window._hls.destroy(); window._hls = null; }
   tp.style.display = 'block';
 
-  var token = getBitportToken();
+  var token = getTorboxToken();
   if (!token) {
-    tp.innerHTML = '<div class="torrent-status">Enter your Bitport API token:<br><br>'
-      + '<input id="bt-token-input" type="text" placeholder="Paste your Bitport API token" style="width:80%;padding:8px;background:#222;color:#eee;border:1px solid #555;border-radius:4px;font-size:13px"><br><br>'
-      + '<button onclick="saveBitportToken()" style="padding:8px 20px;background:#333;color:#eee;border:1px solid #555;border-radius:4px;cursor:pointer">Save & Search</button>'
-      + '<br><br><span style="font-size:11px;color:#666">Get a free Bitport account at bitport.io,<br>then create an app at bitport.io/api/create-application<br>to get your API token.</span></div>';
+    tp.innerHTML = '<div class="torrent-status">Enter your TorBox API key:<br><br>'
+      + '<input id="tb-token-input" type="text" placeholder="Paste your TorBox API key" style="width:80%;padding:8px;background:#222;color:#eee;border:1px solid #555;border-radius:4px;font-size:13px"><br><br>'
+      + '<button onclick="saveTorboxToken()" style="padding:8px 20px;background:#333;color:#eee;border:1px solid #555;border-radius:4px;cursor:pointer">Save & Search</button>'
+      + '<br><br><span style="font-size:11px;color:#666">Create a free TorBox account at torbox.app,<br>then get your API key from Settings > Integrations.</span></div>';
     return;
   }
 
@@ -1269,10 +1269,10 @@ function openTorrentPanel() {
     });
 }
 
-function saveBitportToken() {
-  var inp = document.getElementById('bt-token-input');
+function saveTorboxToken() {
+  var inp = document.getElementById('tb-token-input');
   if (!inp || !inp.value.trim()) return;
-  localStorage.setItem('bitport_token', inp.value.trim());
+  localStorage.setItem('torbox_token', inp.value.trim());
   openTorrentPanel();
 }
 
@@ -1281,27 +1281,53 @@ function pickTorrent(idx) {
   if (!torrents || idx >= torrents.length) return;
   var t = torrents[idx];
   var tp = document.getElementById('torrent-panel');
-  var token = getBitportToken();
-  tp.innerHTML = '<div class="torrent-status">Adding to Bitport...<br><span style="font-size:11px;color:#666">' + t.title.replace(/</g, '&lt;') + '</span></div>';
-  fetch(TORRENT_API + '/torrent/bitport/add?magnet=' + encodeURIComponent(t.magnet) + '&token=' + encodeURIComponent(token), { method: 'POST' })
+  var token = getTorboxToken();
+  tp.innerHTML = '<div class="torrent-status">Adding to TorBox...<br><span style="font-size:11px;color:#666">' + t.title.replace(/</g, '&lt;') + '</span></div>';
+  fetch(TORRENT_API + '/torrent/torbox/add?magnet=' + encodeURIComponent(t.magnet) + '&token=' + encodeURIComponent(token), { method: 'POST' })
     .then(function(r) { return r.json() })
     .then(function(data) {
       if (!data.success) throw new Error(data.error || 'Add failed');
-      var fc = data.data;
-      var fileCode = fc.file_code || fc.token || (fc.files && fc.files[0] && fc.files[0].file_code) || fc.id || fc;
-      tp.innerHTML = '<div class="torrent-status">Processing on Bitport...<br><span style="font-size:11px;color:#666">' + t.title.replace(/</g, '&lt;') + '</span></div>';
-      pollBitport(fileCode, t, token);
+      tp.innerHTML = '<div class="torrent-status">Downloading on TorBox...<br><span style="font-size:11px;color:#666">' + t.title.replace(/</g, '&lt;') + '</span></div>';
+      pollTorbox(t.magnet, t, token);
     })
     .catch(function(e) {
       tp.innerHTML = '<div class="torrent-status">Error: ' + e.message + '</div>';
     });
 }
 
-function pollBitport(fileCode, torrent, token) {
+function pollTorbox(magnet, torrent, token) {
   var attempts = 0;
   function check() {
-    fetch(TORRENT_API + '/torrent/bitport/status?fileCode=' + fileCode + '&token=' + encodeURIComponent(token))
+    fetch(TORRENT_API + '/torrent/torbox/status?magnet=' + encodeURIComponent(magnet) + '&token=' + encodeURIComponent(token))
       .then(function(r) { return r.json() })
+      .then(function(data) {
+        if (data.status === 'ready' && data.streamUrl) {
+          document.getElementById('torrent-panel').style.display = 'none';
+          var stream = {
+            url: data.streamUrl,
+            type: 'mp4',
+            quality: torrent.quality || 'HD',
+            _provider: 'TorBox'
+          };
+          _triedStreams = [];
+          loadStream(stream);
+        } else if (data.status === 'error') {
+          document.getElementById('torrent-panel').innerHTML = '<div class="torrent-status">TorBox processing failed</div>';
+        } else {
+          attempts++;
+          if (attempts > 60) {
+            document.getElementById('torrent-panel').innerHTML = '<div class="torrent-status">Timeout waiting for TorBox</div>';
+            return;
+          }
+          setTimeout(check, 5000);
+        }
+      })
+      .catch(function() {
+        setTimeout(check, 5000);
+      });
+  }
+  check();
+}
       .then(function(data) {
         if (data.status === 'ready' && data.streamUrl) {
           document.getElementById('torrent-panel').style.display = 'none';
