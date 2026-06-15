@@ -738,6 +738,7 @@ function playFromDetail(num) {
   var allTracks = [];
   var _rendered = false;
   var _pending = 0;
+  _triedStreams = [];
   _currentSubIdx = -1;
 
   function parseQuality(q) {
@@ -1372,18 +1373,20 @@ function loadStream(stream) {
   setTimeout(function() { applySubs(); }, 200);
 }
 
+var _triedStreams = [];
 function tryNextStream(current, reason) {
-  var idx = -1;
+  if (current) _triedStreams.push(current);
+  var next = null;
   for (var i = 0; i < CURRENT_STREAMS.length; i++) {
-    if (CURRENT_STREAMS[i] === current) { idx = i; break; }
+    var s = CURRENT_STREAMS[i];
+    if (_triedStreams.indexOf(s) === -1) { next = s; break; }
   }
-  if (idx >= 0 && idx + 1 < CURRENT_STREAMS.length) {
+  if (next) {
     var sel = document.getElementById("server-select");
     if (sel && sel.options) {
-      sel.selectedIndex = idx + 1;
+      sel.selectedIndex = i;
       sel.style.color = "#f44";
     }
-    var next = CURRENT_STREAMS[idx + 1];
     var pname = next._provider || "Source";
     var pq = next.quality || "";
     document.getElementById("player-info").innerHTML += " <span style='color:#f44;font-size:11px'>→ " + pname + (pq ? " " + pq : "") + "</span>";
