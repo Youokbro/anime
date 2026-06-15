@@ -1177,6 +1177,7 @@ function playFromDetail(num) {
 function switchStream(val) {
   var idx = parseInt(val, 10);
   if (idx >= 0 && idx < CURRENT_STREAMS.length) {
+    _triedStreams = [];
     loadStream(CURRENT_STREAMS[idx]);
   }
 }
