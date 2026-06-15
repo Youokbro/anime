@@ -874,6 +874,11 @@ function playFromDetail(num) {
                   try {
                     var bData = JSON.parse(bxhr.responseText);
                     var streams = bData.streams || [];
+                    if (!streams.length) {
+                      for (var _k in bData) {
+                        if (typeof bData[_k] === "object" && bData[_k].streams) { streams = bData[_k].streams; break; }
+                      }
+                    }
                     for (var s = 0; s < streams.length; s++) {
                       var st = streams[s];
                       var url = st.url;
