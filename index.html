@@ -728,7 +728,8 @@ function playFromDetail(num) {
   v.pause(); v.src = ""; v.innerHTML = "";
   if (window._hls) { window._hls.destroy(); window._hls = null; }
   if (_failTimeout) { clearTimeout(_failTimeout); _failTimeout = null; }
-  document.getElementById("player-info").innerHTML = CURRENT_ANIME_TITLE + " - Ep " + num;
+  var seasonLabel = CURRENT_SEASON > 1 ? " S" + CURRENT_SEASON : "";
+  document.getElementById("player-info").innerHTML = CURRENT_ANIME_TITLE + seasonLabel + " - Ep " + num;
   document.getElementById("player-controls").innerHTML = '<span class="loading">Checking all sources...</span>';
   document.getElementById("player-subtitles").innerHTML = "";
 
