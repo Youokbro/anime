@@ -1360,10 +1360,17 @@ function loadStream(stream) {
   if (url.indexOf(".mp4") > -1 || stream.type === "mp4") {
     v.onerror = function() { if (_failTimeout) { clearTimeout(_failTimeout); _failTimeout = null; } v.onerror = null; v.src = ""; tryNextStream(stream, "error"); };
     v.src = url; v.load();
-  } else if (window.Hls && window.Hls.isSupported()) {
+  } else if (window.Hls && window.Hls.isSupported() || v.canPlayType("application/vnd.apple.mpegurl")) {
+    if (_failTimeout) { clearTimeout(_failTimeout); _failTimeout = null; }
     (function(s, u) {
+      var _hlsStarted = false;
+      var _hlsFallbackTimer = null;
       function loadWithHls() {
+        if (_hlsStarted) return;
         if (window.Hls && window.Hls.isSupported()) {
+          _hlsStarted = true;
+          if (_failTimeout) { clearTimeout(_failTimeout); _failTimeout = null; }
+          if (_hlsFallbackTimer) { clearTimeout(_hlsFallbackTimer); _hlsFallbackTimer = null; }
           var hls = new window.Hls(); window._hls = hls;
           hls.on(Hls.Events.ERROR, function(ev, data) {
             if (data.fatal) {
@@ -1373,7 +1380,14 @@ function loadStream(stream) {
             }
           });
           hls.loadSource(u); hls.attachMedia(v);
-        } else {
+        } else if (v.canPlayType("application/vnd.apple.mpegurl")) {
+          _hlsStarted = true;
+          if (_failTimeout) { clearTimeout(_failTimeout); _failTimeout = null; }
+          if (_hlsFallbackTimer) { clearTimeout(_hlsFallbackTimer); _hlsFallbackTimer = null; }
+          v.onerror = function() { if (_failTimeout) { clearTimeout(_failTimeout); _failTimeout = null; } v.onerror = null; v.src = ""; tryNextStream(s, "hls_error"); };
+          v.src = u; v.load();
+        } else if (!_hlsFallbackTimer) {
+          _hlsFallbackTimer = setTimeout(function() { _hlsStarted = true; _hlsFallbackTimer = null; tryNextStream(s, "timeout"); }, 10000);
           setTimeout(loadWithHls, 200);
         }
       }
