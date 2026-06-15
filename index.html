@@ -1352,9 +1352,6 @@ function loadStream(stream) {
   if (url.indexOf(".mp4") > -1 || stream.type === "mp4") {
     v.onerror = function() { if (_failTimeout) { clearTimeout(_failTimeout); _failTimeout = null; } v.onerror = null; v.src = ""; tryNextStream(stream, "error"); };
     v.src = url; v.load();
-  } else if (v.canPlayType("application/vnd.apple.mpegurl")) {
-    v.onerror = function() { if (_failTimeout) { clearTimeout(_failTimeout); _failTimeout = null; } v.onerror = null; v.src = ""; tryNextStream(stream, "hls_error"); };
-    v.src = url; v.load();
   } else if (window.Hls && window.Hls.isSupported()) {
     var hls = new window.Hls(); window._hls = hls;
     hls.on(Hls.Events.ERROR, function(ev, data) {
@@ -1365,6 +1362,9 @@ function loadStream(stream) {
       }
     });
     hls.loadSource(url); hls.attachMedia(v);
+  } else if (v.canPlayType("application/vnd.apple.mpegurl")) {
+    v.onerror = function() { if (_failTimeout) { clearTimeout(_failTimeout); _failTimeout = null; } v.onerror = null; v.src = ""; tryNextStream(stream, "hls_error"); };
+    v.src = url; v.load();
   } else {
     document.getElementById("player-controls").innerHTML = '<span class="error">HLS not supported in this browser</span>';
   }
