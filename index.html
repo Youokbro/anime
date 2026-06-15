@@ -1219,6 +1219,9 @@ function playFromDetail(num) {
 
 function switchStream(val) {
   if (val === 'torrent') { openTorrentPanel(); return; }
+  var el = document.getElementById('torrent-panel');
+  if (el) el.style.display = 'none';
+  killWtTorrent();
   var idx = parseInt(val, 10);
   if (idx >= 0 && idx < CURRENT_STREAMS.length) {
     _triedStreams = [];
@@ -1576,6 +1579,9 @@ function tryNextStream(current, reason) {
       sel.selectedIndex = i;
       sel.style.color = "#f44";
     }
+    var el = document.getElementById('torrent-panel');
+    if (el) el.style.display = 'none';
+    killWtTorrent();
     var pname = next._provider || "Source";
     var pq = next.quality || "";
     document.getElementById("player-info").innerHTML += " <span style='color:#f44;font-size:11px'>→ " + pname + (pq ? " " + pq : "") + "</span>";
