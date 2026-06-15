@@ -1221,6 +1221,9 @@ function switchStream(val) {
 }
 
 var _torrentTitle = '';
+function getBitportToken() {
+  return localStorage.getItem('bitport_token') || '';
+}
 function openTorrentPanel() {
   var tp = document.getElementById('torrent-panel');
   if (!tp) return;
@@ -1228,6 +1231,16 @@ function openTorrentPanel() {
   v.pause(); v.src = '';
   if (window._hls) { window._hls.destroy(); window._hls = null; }
   tp.style.display = 'block';
+
+  var token = getBitportToken();
+  if (!token) {
+    tp.innerHTML = '<div class="torrent-status">Enter your Bitport API token:<br><br>'
+      + '<input id="bt-token-input" type="text" placeholder="Paste your Bitport API token" style="width:80%;padding:8px;background:#222;color:#eee;border:1px solid #555;border-radius:4px;font-size:13px"><br><br>'
+      + '<button onclick="saveBitportToken()" style="padding:8px 20px;background:#333;color:#eee;border:1px solid #555;border-radius:4px;cursor:pointer">Save & Search</button>'
+      + '<br><br><span style="font-size:11px;color:#666">Get a free Bitport account at bitport.io,<br>then create an app at bitport.io/api/create-application<br>to get your API token.</span></div>';
+    return;
+  }
+
   tp.innerHTML = '<div class="torrent-status">Searching torrents...</div>';
   var query = encodeURIComponent(CURRENT_ANIME_TITLE + ' ' + CURRENT_EP_NUM);
   _torrentTitle = CURRENT_ANIME_TITLE + ' - Episode ' + CURRENT_EP_NUM;
@@ -1256,29 +1269,38 @@ function openTorrentPanel() {
     });
 }
 
+function saveBitportToken() {
+  var inp = document.getElementById('bt-token-input');
+  if (!inp || !inp.value.trim()) return;
+  localStorage.setItem('bitport_token', inp.value.trim());
+  openTorrentPanel();
+}
+
 function pickTorrent(idx) {
   var torrents = window._torrentResults;
   if (!torrents || idx >= torrents.length) return;
   var t = torrents[idx];
   var tp = document.getElementById('torrent-panel');
+  var token = getBitportToken();
   tp.innerHTML = '<div class="torrent-status">Adding to Bitport...<br><span style="font-size:11px;color:#666">' + t.title.replace(/</g, '&lt;') + '</span></div>';
-  fetch(TORRENT_API + '/torrent/bitport/add?magnet=' + encodeURIComponent(t.magnet), { method: 'POST' })
+  fetch(TORRENT_API + '/torrent/bitport/add?magnet=' + encodeURIComponent(t.magnet) + '&token=' + encodeURIComponent(token), { method: 'POST' })
     .then(function(r) { return r.json() })
     .then(function(data) {
       if (!data.success) throw new Error(data.error || 'Add failed');
-      var fileCode = data.data.file_code || data.data.token || data.data.files[0].file_code || data.data.id;
+      var fc = data.data;
+      var fileCode = fc.file_code || fc.token || (fc.files && fc.files[0] && fc.files[0].file_code) || fc.id || fc;
       tp.innerHTML = '<div class="torrent-status">Processing on Bitport...<br><span style="font-size:11px;color:#666">' + t.title.replace(/</g, '&lt;') + '</span></div>';
-      pollBitport(fileCode, t);
+      pollBitport(fileCode, t, token);
     })
     .catch(function(e) {
       tp.innerHTML = '<div class="torrent-status">Error: ' + e.message + '</div>';
     });
 }
 
-function pollBitport(fileCode, torrent) {
+function pollBitport(fileCode, torrent, token) {
   var attempts = 0;
   function check() {
-    fetch(TORRENT_API + '/torrent/bitport/status?fileCode=' + fileCode)
+    fetch(TORRENT_API + '/torrent/bitport/status?fileCode=' + fileCode + '&token=' + encodeURIComponent(token))
       .then(function(r) { return r.json() })
       .then(function(data) {
         if (data.status === 'ready' && data.streamUrl) {
