@@ -107,6 +107,13 @@ video::-webkit-media-controls-closed-captions-button{display:none!important}
 
 @keyframes pulse{0%,100%{opacity:.4}50%{opacity:1}}
 .loading{text-align:center;padding:30px;color:#666;animation:pulse 1.5s ease-in-out infinite}
+.torrent-panel{background:#111;padding:10px;max-height:300px;overflow-y:auto;text-align:left}
+.torrent-item{padding:8px 10px;margin:4px 0;border:1px solid #333;border-radius:4px;cursor:pointer;font-size:12px;color:#ccc}
+.torrent-item:hover{border-color:#666;background:#1a1a1a}
+.torrent-item .ttl{color:#eee;font-size:13px}
+.torrent-item .meta{color:#888;font-size:11px;margin-top:3px}
+.torrent-item .seed{color:#4caf50;font-weight:bold}
+.torrent-panel .torrent-status{padding:15px;text-align:center;color:#aaa;font-size:13px}
 .error{text-align:center;padding:30px;color:#f44;font-size:13px}
 
 .btn-status{display:inline-block;padding:4px 10px;margin:2px;border:1px solid #333;border-radius:4px;background:#0a0a0a;color:#eee;cursor:pointer;font-size:12px;text-decoration:none}
@@ -166,6 +173,7 @@ document.head.appendChild(hlsScript);
   </div>
   <video id="player-video" controls autoplay playsinline></video>
   <div id="player-controls" class="player-controls"></div>
+  <div id="torrent-panel" class="torrent-panel" style="display:none"></div>
   <div class="player-sub" id="player-subtitles"></div>
 </div>
 
@@ -180,6 +188,7 @@ var _pendingRequests = {}; // Track pending requests to avoid duplicates
 
 var MIRURO_API = "https://miruro-api-navy.vercel.app";
 var PROXY_BASE = "https://anim-proxy-worker.ahaantadi.workers.dev/";
+var TORRENT_API = "https://anime-api-nu-eight.vercel.app";
 var USE_PROXY = !document.createElement("video").canPlayType("application/vnd.apple.mpegurl");
 var CURRENT_ANIME_ID = 0;
 var CURRENT_ANIME_ANILIST_ID = 0;
@@ -1118,6 +1127,7 @@ function playFromDetail(num) {
       var sq = allSources[si].quality || "";
       controlsHtml += '<option value="' + si + '"' + (si === 0 ? " selected" : "") + '>' + sprov + (sq ? " (" + sq + ")" : "") + '</option>';
     }
+    controlsHtml += '<option value="torrent">Torrent</option>';
     controlsHtml += '</select></div>';
     if (allTracks.length) {
       controlsHtml += '<div class="c" style="width:auto"><label>Subs:</label></div><div class="c" style="width:auto">';
@@ -1171,6 +1181,7 @@ function playFromDetail(num) {
       var sq = allSources[si].quality || "";
       html += '<option value="' + si + '">' + sprov + (sq ? " (" + sq + ")" : "") + '</option>';
     }
+    html += '<option value="torrent">Torrent</option>';
     sel.innerHTML = html;
     if (curVal && parseInt(curVal, 10) < allSources.length) { sel.value = curVal; }
     // Update quality dropdown if new qualities appeared
@@ -1201,11 +1212,101 @@ function playFromDetail(num) {
 }
 
 function switchStream(val) {
+  if (val === 'torrent') { openTorrentPanel(); return; }
   var idx = parseInt(val, 10);
   if (idx >= 0 && idx < CURRENT_STREAMS.length) {
     _triedStreams = [];
     loadStream(CURRENT_STREAMS[idx]);
   }
+}
+
+var _torrentTitle = '';
+function openTorrentPanel() {
+  var tp = document.getElementById('torrent-panel');
+  if (!tp) return;
+  var v = document.getElementById('player-video');
+  v.pause(); v.src = '';
+  if (window._hls) { window._hls.destroy(); window._hls = null; }
+  tp.style.display = 'block';
+  tp.innerHTML = '<div class="torrent-status">Searching torrents...</div>';
+  var query = encodeURIComponent(CURRENT_ANIME_TITLE + ' ' + CURRENT_EP_NUM);
+  _torrentTitle = CURRENT_ANIME_TITLE + ' - Episode ' + CURRENT_EP_NUM;
+  fetch(TORRENT_API + '/torrent/search?q=' + query)
+    .then(function(r) { return r.json() })
+    .then(function(data) {
+      if (!data.torrents || data.torrents.length === 0) {
+        tp.innerHTML = '<div class="torrent-status">No torrents found</div>';
+        return;
+      }
+      var html = '';
+      for (var i = 0; i < data.torrents.length; i++) {
+        var t = data.torrents[i];
+        html += '<div class="torrent-item" onclick="pickTorrent(' + i + ')">';
+        html += '<div class="ttl">' + t.title.replace(/</g, '&lt;') + '</div>';
+        html += '<div class="meta">';
+        if (t.seeders > 0) html += '<span class="seed">▲ ' + t.seeders + '</span> ';
+        html += t.size + ' | ' + t.quality + ' | ' + t.source;
+        html += '</div></div>';
+      }
+      tp.innerHTML = html;
+      window._torrentResults = data.torrents;
+    })
+    .catch(function(e) {
+      tp.innerHTML = '<div class="torrent-status">Search failed: ' + e.message + '</div>';
+    });
+}
+
+function pickTorrent(idx) {
+  var torrents = window._torrentResults;
+  if (!torrents || idx >= torrents.length) return;
+  var t = torrents[idx];
+  var tp = document.getElementById('torrent-panel');
+  tp.innerHTML = '<div class="torrent-status">Adding to Bitport...<br><span style="font-size:11px;color:#666">' + t.title.replace(/</g, '&lt;') + '</span></div>';
+  fetch(TORRENT_API + '/torrent/bitport/add?magnet=' + encodeURIComponent(t.magnet), { method: 'POST' })
+    .then(function(r) { return r.json() })
+    .then(function(data) {
+      if (!data.success) throw new Error(data.error || 'Add failed');
+      var fileCode = data.data.file_code || data.data.token || data.data.files[0].file_code || data.data.id;
+      tp.innerHTML = '<div class="torrent-status">Processing on Bitport...<br><span style="font-size:11px;color:#666">' + t.title.replace(/</g, '&lt;') + '</span></div>';
+      pollBitport(fileCode, t);
+    })
+    .catch(function(e) {
+      tp.innerHTML = '<div class="torrent-status">Error: ' + e.message + '</div>';
+    });
+}
+
+function pollBitport(fileCode, torrent) {
+  var attempts = 0;
+  function check() {
+    fetch(TORRENT_API + '/torrent/bitport/status?fileCode=' + fileCode)
+      .then(function(r) { return r.json() })
+      .then(function(data) {
+        if (data.status === 'ready' && data.streamUrl) {
+          document.getElementById('torrent-panel').style.display = 'none';
+          var stream = {
+            url: data.streamUrl,
+            type: 'mp4',
+            quality: torrent.quality || 'HD',
+            _provider: 'Bitport'
+          };
+          _triedStreams = [];
+          loadStream(stream);
+        } else if (data.status === 'error') {
+          document.getElementById('torrent-panel').innerHTML = '<div class="torrent-status">Bitport processing failed</div>';
+        } else {
+          attempts++;
+          if (attempts > 120) {
+            document.getElementById('torrent-panel').innerHTML = '<div class="torrent-status">Timeout waiting for Bitport</div>';
+            return;
+          }
+          setTimeout(check, 3000);
+        }
+      })
+      .catch(function() {
+        setTimeout(check, 5000);
+      });
+  }
+  check();
 }
 
 function loadExternalIds(mediaId, anilistScore, malId) {
