@@ -1355,13 +1355,13 @@ function pollSeedr(taskId, torrent, hash) {
         var bar = document.getElementById('wt-bar-fill');
         var pct = document.getElementById('wt-pct');
         if (!bar || !pct) return;
-        if (data.tasks && data.tasks[0]) {
-          var task = data.tasks[0];
+        var task = data.task || (data.tasks && data.tasks[0]);
+        if (task) {
           var progress = task.progress || 0;
           bar.style.width = progress + '%';
           pct.textContent = progress + '%';
 
-          if (task.state === 'finished') {
+          if (task.state === 'finished' || progress >= 100) {
             SEEDR_FOLDER_ID = task.folder_created_id;
             if (SEEDR_FOLDER_ID) {
               loadSeedrStream(SEEDR_FOLDER_ID, torrent);
