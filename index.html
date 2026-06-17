@@ -188,6 +188,7 @@ var CURRENT_SUBTITLES = [];
 var _failTimeout = null;
 var _episodeCache = {};
 var _currentSubIdx = -1;
+var _seedrFolderId = null;
 var _apiCache = {}; // Add caching for API responses
 var _pendingRequests = {}; // Track pending requests to avoid duplicates
 
@@ -195,6 +196,7 @@ var MIRURO_API = "https://miruro-api-navy.vercel.app";
 var PROXY_BASE = "https://anim-proxy-worker.ahaantadi.workers.dev/";
 var TORRENT_API = "https://anime-api-nu-eight.vercel.app";
 var RELAY_API = "";
+var SEEDR_API = TORRENT_API + "/seedr";
 var USE_PROXY = !document.createElement("video").canPlayType("application/vnd.apple.mpegurl");
 var CURRENT_ANIME_ID = 0;
 var CURRENT_ANIME_ANILIST_ID = 0;
@@ -1217,7 +1219,20 @@ function playFromDetail(num) {
   }
 }
 
+function cleanupSeedr() {
+  if (_seedrFolderId) {
+    var fid = _seedrFolderId;
+    _seedrFolderId = null;
+    fetch(SEEDR_API + '/delete', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ items: JSON.stringify([{ type: 'folder', id: fid }]) })
+    }).catch(function() {});
+  }
+}
+
 function switchStream(val) {
+  cleanupSeedr();
   if (val === 'torrent') { openTorrentPanel(); return; }
   var el = document.getElementById('torrent-panel');
   if (el) el.style.display = 'none';
@@ -1229,6 +1244,7 @@ function switchStream(val) {
 }
 
 function openTorrentPanel() {
+  cleanupSeedr();
   var tp = document.getElementById('torrent-panel');
   if (!tp) return;
   var v = document.getElementById('player-video');
@@ -1293,65 +1309,153 @@ function pickTorrent(idx) {
     return;
   }
   var hash = (t.magnet.match(/btih:([a-f0-9]+)/i) || [])[1] || '';
-  document.getElementById('torrent-panel').innerHTML =
+  var tp = document.getElementById('torrent-panel');
+  tp.innerHTML =
     '<div class="torrent-status">' +
     '<div style="font-size:12px;color:#eee">' + t.title.replace(/</g, '&lt;') + '</div>' +
     '<div class="wt-hash">' + hash.toUpperCase() + '</div>' +
     '<div class="wt-bar-wrap"><div id="wt-bar-fill" class="wt-bar-fill"></div></div>' +
-    '<div class="wt-info"><span id="wt-pct">connecting to relay...</span><span id="wt-speed"></span><span id="wt-peers"></span></div>' +
+    '<div class="wt-info"><span id="wt-pct">sending to Seedr...</span><span id="wt-speed"></span><span id="wt-peers"></span></div>' +
     '</div>';
 
-  var ep = encodeURIComponent(t.magnet) + '&m=' + encodeURIComponent(t.magnet);
-  fetch(RELAY_API + '/add?magnet=' + encodeURIComponent(t.magnet))
+  fetch(SEEDR_API + '/add', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ magnet: t.magnet })
+  })
     .then(function(r) { return r.json() })
     .then(function(data) {
-      if (data.error) throw new Error(data.error);
-      pollRelay(hash, t);
+      if (data.error || data.reason_phrase) {
+        if (data.reason_phrase === 'queue_full_added_to_wishlist') {
+          tp.innerHTML = '<div class="torrent-status">Your Seedr queue is full (free = 1 slot). Wait for current download to finish.</div>';
+        } else {
+          throw new Error(data.error || data.reason_phrase);
+        }
+        return;
+      }
+      if (data.wt) {
+        tp.innerHTML = '<div class="torrent-status">No space - added to wishlist</div>';
+        return;
+      }
+      var taskId = data.user_torrent_id;
+      pollSeedr(taskId, t, hash);
     })
     .catch(function(e) {
-      document.getElementById('torrent-panel').innerHTML = '<div class="torrent-status">Relay error: ' + e.message + '</div>';
+      tp.innerHTML = '<div class="torrent-status">Seedr error: ' + e.message + '</div>';
     });
 }
 
-function pollRelay(hash, torrent) {
+function pollSeedr(taskId, torrent, hash) {
   var attempts = 0;
+  var SEEDR_FOLDER_ID = null;
   function check() {
-    fetch(RELAY_API + '/status?hash=' + hash)
+    fetch(SEEDR_API + '/status?task_id=' + taskId)
       .then(function(r) { return r.json() })
       .then(function(data) {
         var bar = document.getElementById('wt-bar-fill');
         var pct = document.getElementById('wt-pct');
-        var spd = document.getElementById('wt-speed');
-        var prs = document.getElementById('wt-peers');
-        if (bar) bar.style.width = data.progress + '%';
-        if (pct) pct.textContent = data.progress + '%';
-        if (spd) spd.textContent = data.done ? '' : (data.speed / 1e6).toFixed(1) + ' MB/s';
-        if (prs) prs.textContent = data.peers + ' peers' + (data.done ? ' (cached)' : '');
+        if (!bar || !pct) return;
+        if (data.tasks && data.tasks[0]) {
+          var task = data.tasks[0];
+          var progress = task.progress || 0;
+          bar.style.width = progress + '%';
+          pct.textContent = progress + '%';
 
-        if (data.done || data.progress > 5) {
-          document.getElementById('torrent-panel').style.display = 'none';
-          var stream = {
-            url: RELAY_API + '/stream?hash=' + hash,
-            type: 'mp4',
-            quality: torrent.quality || 'HD',
-            _provider: 'Relay'
-          };
-          _triedStreams = [];
-          loadStream(stream);
-          return;
+          if (task.state === 'finished') {
+            SEEDR_FOLDER_ID = task.folder_created_id;
+            if (SEEDR_FOLDER_ID) {
+              loadSeedrStream(SEEDR_FOLDER_ID, torrent);
+            } else {
+              pct.textContent = 'done, but no folder id';
+            }
+            return;
+          }
         }
         attempts++;
         if (attempts > 120) {
-          if (pct) pct.textContent = 'timeout - no peers?';
+          pct.textContent = 'timeout - check Seedr';
           return;
         }
-        setTimeout(check, 5000);
+        setTimeout(check, 3000);
       })
       .catch(function() {
-        setTimeout(check, 5000);
+        setTimeout(check, 3000);
       });
   }
   check();
+}
+
+function loadSeedrStream(folderId, torrent) {
+  var tp = document.getElementById('torrent-panel');
+  tp.innerHTML = '<div class="torrent-status">Loading video files from Seedr...</div>';
+
+  fetch(SEEDR_API + '/contents?folder_id=' + folderId)
+    .then(function(r) { return r.json() })
+    .then(function(data) {
+      var videoFile = null;
+      function findVideo(items) {
+        for (var i = 0; items && i < items.length; i++) {
+          var f = items[i];
+          if (f.is_video) videoFile = f;
+          if (f.presentation_urls && f.presentation_urls.video && f.presentation_urls.video.hls) {
+            videoFile = f;
+          }
+        }
+      }
+      findVideo(data.files);
+      if (!videoFile && data.folders && data.folders.length > 0) {
+        tp.innerHTML = '<div class="torrent-status">Video in subfolder, fetching...</div>';
+        fetch(SEEDR_API + '/contents?folder_id=' + data.folders[0].id)
+          .then(function(r) { return r.json() })
+          .then(function(subData) { findVideo(subData.files); loadVideo(videoFile, torrent, folderId); })
+          .catch(function(e) { tp.innerHTML = '<div class="torrent-status">Error: ' + e.message + '</div>'; });
+        return;
+      }
+      loadVideo(videoFile, torrent, folderId);
+    })
+    .catch(function(e) {
+      tp.innerHTML = '<div class="torrent-status">Error: ' + e.message + '</div>';
+    });
+}
+
+function loadVideo(videoFile, torrent, folderId) {
+  var tp = document.getElementById('torrent-panel');
+  if (!videoFile) {
+    tp.innerHTML = '<div class="torrent-status">No video file found</div>';
+    return;
+  }
+
+  var streamUrl = null;
+
+  if (videoFile.presentation_urls && videoFile.presentation_urls.video && videoFile.presentation_urls.video.hls) {
+    streamUrl = videoFile.presentation_urls.video.hls;
+  } else {
+    tp.innerHTML = '<div class="torrent-status">Getting download URL...</div>';
+    fetch(SEEDR_API + '/hls?file_id=' + videoFile.id)
+      .then(function(r) { return r.json() })
+      .then(function(d) {
+        if (d.url) startSeedrStream(d.url, torrent, folderId);
+        else tp.innerHTML = '<div class="torrent-status">No stream URL</div>';
+      });
+    return;
+  }
+
+  if (streamUrl) startSeedrStream(streamUrl, torrent, folderId);
+}
+
+function startSeedrStream(url, torrent, folderId) {
+  document.getElementById('torrent-panel').style.display = 'none';
+
+  _seedrFolderId = folderId;
+
+  var stream = {
+    url: url,
+    type: url.includes('.m3u8') ? 'hls' : 'mp4',
+    quality: torrent.quality || 'HD',
+    _provider: 'Seedr'
+  };
+  _triedStreams = [];
+  loadStream(stream);
 }
 
 function loadExternalIds(mediaId, anilistScore, malId) {
