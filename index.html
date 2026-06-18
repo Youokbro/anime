@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
 <meta name="description" content="AnimeStream - Watch anime with multiple source options">
-<meta name="theme-color" content="#004080">
+<meta name="theme-color" content="#111">
 <title>AnimeStream</title>
 <style>
 *{margin:0;padding:0;box-sizing:border-box}
@@ -15,7 +15,7 @@ input,button{font-size:16px;-webkit-user-select:text;user-select:text}
 .page.active{display:block}
 img{max-width:100%}
 
-.nav{background:#004080;padding:10px 14px;display:table;width:100%;border-bottom:1px solid #0066cc;will-change:transform}
+.nav{background:#111;padding:10px 14px;display:table;width:100%;border-bottom:1px solid #333;will-change:transform}
 .nav-cell{display:table-cell;vertical-align:middle}
 .nav-title{font-size:20px;font-weight:bold;color:#fff}
 .nav-back{padding:5px 10px;background:none;color:#fff;border:1px solid #fff;border-radius:4px;cursor:pointer;font-size:14px;-webkit-touch-callout:default;-webkit-user-select:none;user-select:none}
@@ -88,10 +88,10 @@ img{max-width:100%}
 #player-page video{width:100%;max-width:960px;display:block;margin:0 auto;background:#000}
 video::-webkit-media-controls-toggle-closed-captions-button{display:none!important}
 video::-webkit-media-controls-closed-captions-button{display:none!important}
-.player-top{background:#004080;padding:8px 12px;display:table;width:100%}
+.player-top{background:#111;padding:8px 12px;display:table;width:100%}
 .player-top .c{display:table-cell;vertical-align:middle}
 .player-info{font-size:13px;color:#eee;padding-left:10px}
-.player-controls{text-align:center;padding:6px 8px;display:table;width:100%;background:#004080;flex-wrap:wrap}
+.player-controls{text-align:center;padding:6px 8px;display:table;width:100%;background:#111;flex-wrap:wrap}
 .player-controls .c{display:table-cell;vertical-align:middle;padding:0 4px;white-space:nowrap}
 .player-controls select{padding:4px 8px;background:#111;color:#eee;border:1px solid #333;border-radius:4px;font-size:13px;-webkit-appearance:none;-moz-appearance:none;appearance:none}
 .player-controls label{color:#aaa;font-size:12px}
@@ -140,7 +140,7 @@ document.head.appendChild(hlsScript);
 <body>
 
 <div id="home-page" class="page active">
-  <div class="nav" style="display:table;width:100%;background:#004080"><div class="nav-cell nav-title">AnimeStream</div><div class="nav-cell nav-right" id="anilist-nav"></div></div>
+  <div class="nav" style="display:table;width:100%;background:#111"><div class="nav-cell nav-title">AnimeStream</div><div class="nav-cell nav-right" id="anilist-nav"></div></div>
   <div class="search-wrap">
     <div class="search-row">
       <div class="c" style="width:100%"><input id="home-search-input" type="text" placeholder="Search..." onkeydown="if(event.keyCode===13)doHomeSearch()"></div>
