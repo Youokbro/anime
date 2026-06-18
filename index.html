@@ -1221,15 +1221,8 @@ function playFromDetail(num) {
 }
 
 function cleanupSeedr() {
-  if (_seedrFolderId) {
-    var fid = _seedrFolderId;
-    _seedrFolderId = null;
-    fetch(SEEDR_API + '/delete', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ items: JSON.stringify([{ type: 'folder', id: fid }]) })
-    }).catch(function() {});
-  }
+  _seedrFolderId = null;
+  fetch(SEEDR_API + '/cleanup', { method: 'POST' }).catch(function() {});
 }
 
 function switchStream(val) {
@@ -1359,28 +1352,8 @@ function pickTorrent(idx) {
     '<div class="wt-info"><span id="wt-pct">clearing previous downloads...</span><span id="wt-speed"></span><span id="wt-peers"></span></div>' +
     '</div>';
 
-  // First clean up any existing files/tasks in Seedr
-  fetch(SEEDR_API + '/contents?folder_id=0')
-    .then(function(r) { return r.json() })
-    .then(function(root) {
-      var deletes = [];
-      (root.folders || []).forEach(function(f) {
-        deletes.push({ type: 'folder', id: f.id });
-      });
-      (root.torrents || []).forEach(function(t) {
-        deletes.push({ type: 'torrent', id: t.id });
-      });
-      (root.files || []).forEach(function(f) {
-        deletes.push({ type: 'file', id: f.id });
-      });
-      if (deletes.length > 0) {
-        return fetch(SEEDR_API + '/delete', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ items: JSON.stringify(deletes) })
-        }).then(function(r) { return r.json() });
-      }
-    })
+  // Clean up existing torrents/folders in Seedr
+  fetch(SEEDR_API + '/cleanup', { method: 'POST' })
     .catch(function() {})
     .then(function() {
       // Now add the new magnet
