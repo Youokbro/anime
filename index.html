@@ -1237,14 +1237,29 @@ function switchStream(val) {
   }
 }
 
-function parseSize(str) {
-  if (!str) return 0;
+function formatSize(str) {
+  if (!str) return '?';
+  if (typeof str === 'number') {
+    if (str >= 1024) return (str / 1024).toFixed(1) + ' GB';
+    return Math.round(str) + ' MB';
+  }
+  if (typeof str === 'string' && !str.match(/^[\d.]+$/)) {
+    var mb = parseOldSize(str);
+    if (mb > 0) {
+      if (mb >= 1024) return (mb / 1024).toFixed(1) + ' GB';
+      return Math.round(mb) + ' MB';
+    }
+  }
+  var n = parseFloat(str);
+  if (isNaN(n) || n <= 0) return str || '?';
+  if (n >= 1024) return (n / 1024).toFixed(1) + ' GB';
+  return Math.round(n) + ' MB';
+}
+
+function parseOldSize(str) {
   str = str.replace(/,/g, '').trim();
   var m = str.match(/^([\d.]+)\s*(GiB|GB|MiB|MB|KiB|KB|B)?$/i);
-  if (!m) {
-    var n = parseFloat(str);
-    return isNaN(n) ? 0 : n;
-  }
+  if (!m) return 0;
   var n = parseFloat(m[1]);
   var u = (m[2] || '').toLowerCase();
   if (u === 'gib' || u === 'gb') return n * 1024;
@@ -1252,13 +1267,6 @@ function parseSize(str) {
   if (u === 'kib' || u === 'kb') return n / 1024;
   if (u === 'b') return n / (1024 * 1024);
   return n;
-}
-
-function formatSize(str) {
-  var mb = parseSize(str);
-  if (mb === 0) return str || '?';
-  if (mb >= 1024) return (mb / 1024).toFixed(1) + ' GB';
-  return Math.round(mb) + ' MB';
 }
 
 function openTorrentPanel() {
