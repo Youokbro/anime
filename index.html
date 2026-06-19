@@ -455,7 +455,7 @@ function loadHome() {
       }
       html += h + '</tr></table></div>';
       c.innerHTML = html;
-      setTimeout(loadCatalogExtras, 1500);
+      loadCatalogExtras();
     } else {
       c.innerHTML = '<div class="error">Failed to load catalogs</div>';
     }
