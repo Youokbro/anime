@@ -867,11 +867,24 @@ function playFromDetail(num) {
     }
   }
 
+  // Calculate season offset for multi-season anime
+  function getSeasonOffset() {
+    var offset = 0;
+    for (var si = 0; si < _tmdbSeasons.length; si++) {
+      var sn = _tmdbSeasons[si].season_number || 0;
+      if (sn > 0 && sn < CURRENT_SEASON) {
+        offset += _tmdbSeasons[si].episode_count || 0;
+      }
+    }
+    return offset;
+  }
+
   // --- Miruro-API providers (with episode cache) ---
   if (CURRENT_ANIME_ANILIST_ID) {
     _noRequests = false;
     _pending++;
     (function(epNum) {
+      var epOffset = getSeasonOffset();
       function processEpData(epData) {
         try {
           var provNames = ["bonk", "ally", "bee", "kiwi", "moo"];
@@ -880,9 +893,11 @@ function playFromDetail(num) {
               var prov = epData.providers && epData.providers[provName];
               if (!prov) return;
               var subEps = (prov.episodes && prov.episodes.sub) || [];
+              // Try per-season numbering first, then global
               var found = null;
               for (var e = 0; e < subEps.length; e++) {
                 if (subEps[e].number === epNum) { found = subEps[e]; break; }
+                if (epOffset && subEps[e].number === epNum + epOffset) { found = subEps[e]; }
               }
               if (!found) return;
               _pending++;
