@@ -617,13 +617,22 @@ function showAnilistDetail(media) {
   html += '<div class="detail-right">';
   if (desc) html += '<div class="detail-desc">' + desc + '</div>';
   html += '<div id="detail-ids" style="font-size:11px;color:#555;margin-top:4px"></div>';
-  html += '<div id="detail-ratings" style="padding:8px 12px;font-size:15px;font-weight:bold"></div>';
+  html += '<div id="detail-ratings" style="font-size:15px;font-weight:bold"></div>';
   html += '</div></div>';
   html += '<div class="section-title" style="padding-left:12px">Episodes</div><div id="season-tabs"></div><div id="ep-list"><div class="loading">Loading episodes...</div></div><div id="anilist-status"></div>';
   html += '</div></div>';
   c.innerHTML = html;
 
-  // Single combined AniList query for status + external links + relations + scores
+  // Fire episode loading IMMEDIATELY — search TMDB by title, don't wait for AniList
+  searchTMDB(CURRENT_ANIME_TITLE, function(tmdbId) {
+    if (tmdbId) {
+      CURRENT_TMDB_ID = tmdbId;
+      loadTmdbSeasons(tmdbId);
+      fetchTmdbRating(tmdbId);
+    }
+  });
+
+  // Background: ratings + AniList status + relations + MAL score + IDs
   anilistGraphQL("query ($id: Int, $u: Int) { Media(id: $id) { id averageScore idMal externalLinks { site url id } relations { edges { relationType node { id title { romaji english } } } } mediaListEntry { id status progress } } }",
     { id: media.id, u: ANILIST_USER ? ANILIST_USER.id : 0 },
     function(err, data) {
@@ -669,7 +678,7 @@ function showAnilistDetail(media) {
         }
       }
 
-      // External IDs and TMDB
+      // IDs
       var tmdbId = "";
       var imdbId = "";
       var malId = m.idMal;
@@ -685,6 +694,16 @@ function showAnilistDetail(media) {
         }
       }
 
+      // Update TMDB ID if found (episodes may already be loading from searchTMDB above)
+      if (tmdbId && !CURRENT_TMDB_ID) {
+        CURRENT_TMDB_ID = tmdbId;
+        CURRENT_IMDB_ID = imdbId;
+        loadTmdbSeasons(tmdbId);
+      } else if (tmdbId) {
+        CURRENT_TMDB_ID = tmdbId;
+        CURRENT_IMDB_ID = imdbId;
+      }
+
       var idEl = document.getElementById("detail-ids");
       if (idEl) {
         var parts = [];
@@ -693,26 +712,7 @@ function showAnilistDetail(media) {
         idEl.innerHTML = parts.length ? parts.join(" &bull; ") : "";
       }
 
-      // Fetch TMDB seasons + episodes in parallel
-      if (tmdbId) {
-        CURRENT_TMDB_ID = tmdbId;
-        CURRENT_IMDB_ID = imdbId;
-        loadTmdbSeasons(tmdbId);
-        fetchTmdbRating(tmdbId);
-      } else {
-        searchTMDB(CURRENT_ANIME_TITLE, function(foundTmdb) {
-          if (foundTmdb) {
-            CURRENT_TMDB_ID = foundTmdb;
-            loadTmdbSeasons(foundTmdb);
-            fetchTmdbRating(foundTmdb);
-          }
-        });
-      }
-
-      // Fetch MAL score in parallel
-      if (malId) {
-        fetchMalScore(malId);
-      }
+      if (malId) fetchMalScore(malId);
     }
   );
 }
