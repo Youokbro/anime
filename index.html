@@ -617,11 +617,16 @@ function showAnilistDetail(media) {
   html += '<div class="detail-right">';
   if (desc) html += '<div class="detail-desc">' + desc + '</div>';
   html += '<div id="detail-ids" style="font-size:11px;color:#555;margin-top:4px"></div>';
-  html += '<div id="detail-ratings" style="font-size:15px;font-weight:bold"></div>';
+  html += '<div id="detail-ratings" style="padding:8px 12px;font-size:15px;font-weight:bold"></div>';
   html += '</div></div>';
   html += '<div class="section-title" style="padding-left:12px">Episodes</div><div id="season-tabs"></div><div id="ep-list"><div class="loading">Loading episodes...</div></div><div id="anilist-status"></div>';
   html += '</div></div>';
   c.innerHTML = html;
+
+  // Show rating from cached data immediately
+  if (media.averageScore) {
+    document.getElementById("detail-ratings").innerHTML = "AniList: " + (media.averageScore / 10).toFixed(1);
+  }
 
   // Fire episode loading IMMEDIATELY — search TMDB by title, don't wait for AniList
   searchTMDB(CURRENT_ANIME_TITLE, function(tmdbId) {
@@ -643,7 +648,7 @@ function showAnilistDetail(media) {
       var ratEl = document.getElementById("detail-ratings");
       if (ratEl) {
         var parts = [];
-        if (m.averageScore) parts.push("AniList: " + m.averageScore + "%");
+        if (m.averageScore) parts.push("AniList: " + (m.averageScore / 10).toFixed(1));
         ratEl.innerHTML = parts.join("  |  ");
       }
 
