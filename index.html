@@ -600,6 +600,7 @@ function showAnilistDetail(media) {
   CURRENT_ANIME_ID = media.id;
   CURRENT_ANIME_ANILIST_ID = media.id;
   _originalAniListId = media.id;
+  loadSeasonRelations(media.id);
   CURRENT_ANIME_TITLE = getTitle(media);
   CURRENT_ANIME_ROMAJI = (media.title && media.title.romaji) || CURRENT_ANIME_TITLE;
   _lastPage = "detail";
