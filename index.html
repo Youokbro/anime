@@ -1076,6 +1076,29 @@ function playFromDetail(num) {
                         quality: st.quality || "HD",
                         _provider: provNameCap
                       });
+                      // Also add MediaFlow-proxied version
+                      _pending++;
+                      (function(mfUrl, mfProv, mfReferer) {
+                        var mfxhr = new XMLHttpRequest();
+                        mfxhr.open("GET", TORRENT_API + "/stream/mf-proxy?url=" + encodeURIComponent(mfUrl) + "&referer=" + encodeURIComponent(mfReferer) + "&type=hls");
+                        mfxhr.onload = function() {
+                          if (mfxhr.status === 200) {
+                            try {
+                              var mfData = JSON.parse(mfxhr.responseText);
+                              var mfStreams = mfData.sources || [];
+                              for (var msi = 0; msi < mfStreams.length; msi++) {
+                                addSource({ url: mfStreams[msi].url, type: mfStreams[msi].type || "hls", quality: mfStreams[msi].quality || "HD", _provider: "MF-" + mfProv });
+                              }
+                              if (mfData.tracks) addTracks(mfData.tracks);
+                            } catch(e) {}
+                          }
+                          oneDone();
+                        };
+                        mfxhr.onerror = function() { oneDone(); };
+                        mfxhr.ontimeout = function() { oneDone(); };
+                        mfxhr.timeout = 12000;
+                        mfxhr.send();
+                      })(url, provNameCap, streamReferer);
                     }
                     if (bData.subtitles) addTracks(bData.subtitles);
                   } catch (e) {}
@@ -1110,64 +1133,35 @@ function playFromDetail(num) {
     })(num);
   }
 
-  // --- OpenSubtitles fallback subs (always try, no TMDB required) ---
+  // --- External subtitles (via backend aggregator) ---
   _pending++;
-  (function(epNum, season) {
-      var osUrl = MIRURO_API + "/subtitles/search?languages=en&season_number=" + season + "&episode_number=" + epNum;
-      if (CURRENT_TMDB_ID) {
-        osUrl += "&tmdb_id=" + CURRENT_TMDB_ID;
-      } else if (CURRENT_IMDB_ID) {
-        osUrl += "&parent_imdb_id=" + CURRENT_IMDB_ID.replace(/^tt/i, "");
-      } else {
-        osUrl += "&query=" + encodeURIComponent(CURRENT_ANIME_TITLE);
-      }
-      var osx = new XMLHttpRequest();
-      osx.open("GET", osUrl, true);
-      osx.setRequestHeader("User-Agent", "AnimeStream v1.0");
-      osx.onload = function() {
-        if (osx.status === 200) {
-          try {
-            var osd = JSON.parse(osx.responseText);
-            var list = osd.data || [];
-            if (list.length) {
-              var best = list[0];
-              for (var oi = 0; oi < list.length; oi++) {
-                var a = list[oi].attributes || {};
-                if (a.subtitle_format === "vtt") { best = list[oi]; break; }
-              }
-              var attrs = best.attributes || {};
-              var files = attrs.files || [];
-              var fileId = files.length ? (files[0].file_id || 0) : 0;
-              if (fileId) {
-                _pending++;
-                var dlx = new XMLHttpRequest();
-                dlx.open("POST", MIRURO_API + "/subtitles/download", true);
-                dlx.setRequestHeader("Content-Type", "application/json");
-                dlx.setRequestHeader("User-Agent", "AnimeStream v1.0");
-                dlx.onload = function() {
-                  if (dlx.status === 200) {
-                    try {
-                      var dl = JSON.parse(dlx.responseText);
-                      if (dl.link) {
-                        allTracks.push({ file: dl.link, label: "English (OpenSubtitles)" });
-                        updateSubsDropdown();
-                      }
-                    } catch(e) {}
-                  }
-                  oneDone();
-                };
-                dlx.onerror = function() { oneDone(); };
-                dlx.send(JSON.stringify({ file_id: fileId }));
-                oneDone(); return;
-              }
+  (function(tmdbEp) {
+    var subUrl = TORRENT_API + "/subtitles?tmdbId=" + CURRENT_TMDB_ID + "&season=" + CURRENT_SEASON + "&episode=" + tmdbEp + "&languages=en";
+    if (CURRENT_IMDB_ID) subUrl += "&imdbId=" + CURRENT_IMDB_ID;
+    var sxhr = new XMLHttpRequest();
+    sxhr.open("GET", subUrl, true);
+    sxhr.onload = function() {
+      if (sxhr.status === 200) {
+        try {
+          var sd = JSON.parse(sxhr.responseText);
+          var tracks = sd.tracks || [];
+          for (var ti = 0; ti < tracks.length; ti++) {
+            var found = false;
+            for (var ct = 0; ct < allTracks.length; ct++) {
+              if (allTracks[ct].file === tracks[ti].file) { found = true; break; }
             }
-          } catch(e) {}
-        }
-        oneDone();
-      };
-      osx.onerror = function() { oneDone(); };
-      osx.send();
-    })(num, CURRENT_SEASON);
+            if (!found) allTracks.push(tracks[ti]);
+          }
+          if (tracks.length) updateSubsDropdown();
+        } catch(e) {}
+      }
+      oneDone();
+    };
+    sxhr.onerror = function() { oneDone(); };
+    sxhr.ontimeout = function() { oneDone(); };
+    sxhr.timeout = 12000;
+    sxhr.send();
+  })(num);
 
   // --- AniZone source (via Miruro-API scraper) ---
   if (CURRENT_ANIME_ANILIST_ID && !SUB_ONLY) {
@@ -2126,7 +2120,7 @@ function closePlayer() {
 
 var _lastAnilistSearch = [];
 var _homeResults = [];
-var PROVIDER_PRIORITY = { "Bonk":1, "Ally":2, "Kiwi":3, "Pewe":4, "Bee":5, "Bun":6, "Nun":7, "Twin":8, "Cog":9, "Hop":10, "Telli":11, "Moo":12, "Arc":13, "Zoro":14, "Jet":15, "HiAnime":16, "Gogoanime":17, "AniZone":18, "EzVidlink":19, "EzVidnest":20, "EzVidrock":21, "EzVidsrc":22, "EzVidzee":23, "EzIcefy":24, "EzVixsrc":25, "EzPopr":26, "VidLink":27, "VixSrc":28, "MF-Vix":29, "NoTorrent":30, "Dahmer":31, "AnimeSaturn":32, "AnimeWorld":33 };
+var PROVIDER_PRIORITY = { "Bonk":1, "Ally":2, "Kiwi":3, "Pewe":4, "Bee":5, "Bun":6, "Nun":7, "Twin":8, "Cog":9, "Hop":10, "Telli":11, "Moo":12, "Arc":13, "Zoro":14, "Jet":15, "MF-Bonk":16, "MF-Ally":17, "MF-Kiwi":18, "MF-Pewe":19, "MF-Bee":20, "MF-Bun":21, "MF-Nun":22, "MF-Twin":23, "MF-Cog":24, "MF-Hop":25, "MF-Telli":26, "MF-Moo":27, "MF-Arc":28, "MF-Zoro":29, "MF-Jet":30, "HiAnime":31, "Gogoanime":32, "AniZone":33, "EzVidlink":34, "EzVidnest":35, "EzVidrock":36, "EzVidsrc":37, "EzVidzee":38, "EzIcefy":39, "EzVixsrc":40, "EzPopr":41, "VidLink":42, "VixSrc":43, "MF-Vix":44, "NoTorrent":45, "Dahmer":46, "AnimeSaturn":47, "AnimeWorld":48 };
 
 // Auto-track episode completion on AniList
 document.getElementById("player-video").addEventListener("ended", function() {
