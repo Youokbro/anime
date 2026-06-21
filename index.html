@@ -624,9 +624,11 @@ function showAnilistDetail(media) {
   c.innerHTML = html;
 
   // Show rating from cached data immediately
-  if (media.averageScore) {
-    document.getElementById("detail-ratings").innerHTML = "AniList: " + (media.averageScore / 10).toFixed(1);
-  }
+  var ratEl = document.getElementById("detail-ratings");
+  var parts = [];
+  if (media.averageScore) parts.push("AniList: " + (media.averageScore / 10).toFixed(1));
+  ratEl.innerHTML = parts.join("  |  ");
+  if (media.idMal) fetchMalScore(media.idMal);
 
   // Fire episode loading IMMEDIATELY — search TMDB by title, don't wait for AniList
   searchTMDB(CURRENT_ANIME_TITLE, function(tmdbId) {
@@ -644,12 +646,13 @@ function showAnilistDetail(media) {
       if (err || !data || !data.Media) return;
       var m = data.Media;
 
-      // Ratings
+      // Ratings — update AniList without clearing MAL/TMDB
       var ratEl = document.getElementById("detail-ratings");
-      if (ratEl) {
-        var parts = [];
-        if (m.averageScore) parts.push("AniList: " + (m.averageScore / 10).toFixed(1));
-        ratEl.innerHTML = parts.join("  |  ");
+      if (ratEl && m.averageScore) {
+        var txt = ratEl.textContent || ratEl.innerText || "";
+        txt = txt.replace(/AniList: [\d.]+/g, "").replace(/  \|  $/, "").replace(/\s*\|\s*/g, " | ").trim();
+        var anis = "AniList: " + (m.averageScore / 10).toFixed(1);
+        ratEl.innerHTML = anis + (txt ? "  |  " + txt : "");
       }
 
       // AniList status
@@ -938,7 +941,7 @@ function playFromDetail(num) {
   // --- EzVidApi sources (TMDB-based) — skipped in sub-only mode ---
   if (CURRENT_TMDB_ID && !SUB_ONLY) {
     _noRequests = false;
-    var EZ_PROVIDERS = ["vidlink", "vidnest", "vidrock"];
+    var EZ_PROVIDERS = ["vidlink", "vidnest", "vidrock", "vidsrc", "vidzee", "icefy", "vixsrc", "popr"];
     for (var ezi = 0; ezi < EZ_PROVIDERS.length; ezi++) {
       _pending++;
       (function(tmdbEp, ezProv) {
@@ -982,17 +985,17 @@ function playFromDetail(num) {
       var epOffset = getSeasonOffset();
       function processEpData(epData) {
         try {
-          var provNames = ["bonk", "ally", "bee", "kiwi", "moo"];
+          var provNames = ["bonk", "ally", "bee", "kiwi", "moo", "pewe", "bun", "nun", "twin", "cog", "hop", "telli", "arc", "zoro", "jet"];
           for (var pi = 0; pi < provNames.length; pi++) {
             (function(provName) {
               var prov = epData.providers && epData.providers[provName];
               if (!prov) return;
               var subEps = (prov.episodes && prov.episodes.sub) || [];
-              // Try per-season numbering first, then global
+              // Try global numbering first (with season offset), fall back to per-season
               var found = null;
               for (var e = 0; e < subEps.length; e++) {
-                if (subEps[e].number === epNum) { found = subEps[e]; break; }
-                if (epOffset && subEps[e].number === epNum + epOffset) { found = subEps[e]; }
+                if (epOffset && subEps[e].number === epNum + epOffset) { found = subEps[e]; break; }
+                if (subEps[e].number === epNum) { found = subEps[e]; }
               }
               if (!found) return;
               _pending++;
@@ -1119,7 +1122,7 @@ function playFromDetail(num) {
   // --- AniZone source (via Miruro-API scraper) ---
   if (CURRENT_ANIME_ANILIST_ID && !SUB_ONLY) {
     _pending++;
-    (function(epNum) {
+      (function(epNum) {
       var azxhr = new XMLHttpRequest();
       azxhr.open("GET", MIRURO_API + "/anizone/" + CURRENT_ANIME_ANILIST_ID + "/" + epNum, true);
       azxhr.onload = function() {
@@ -1153,7 +1156,7 @@ function playFromDetail(num) {
   // --- hianime.to source (via Miruro-API scraper) ---
   if (CURRENT_ANIME_ANILIST_ID) {
     _pending++;
-    (function(epNum) {
+      (function(epNum) {
       var hxhr = new XMLHttpRequest();
       hxhr.open("GET", MIRURO_API + "/hianime/" + CURRENT_ANIME_ANILIST_ID + "/" + epNum, true);
       hxhr.onload = function() {
@@ -1185,7 +1188,7 @@ function playFromDetail(num) {
   // --- Gogoanime source (via Miruro-API scraper) ---
   if (CURRENT_ANIME_ANILIST_ID) {
     _pending++;
-    (function(epNum) {
+      (function(epNum) {
       var gxhr = new XMLHttpRequest();
       gxhr.open("GET", MIRURO_API + "/gogoanime/" + CURRENT_ANIME_ANILIST_ID + "/" + epNum, true);
       gxhr.onload = function() {
@@ -1210,6 +1213,49 @@ function playFromDetail(num) {
       gxhr.ontimeout = function() { oneDone(); };
       gxhr.timeout = 12000;
       gxhr.send();
+    })(num);
+  }
+
+  // --- StreamViX HTTP streams (Stremio addon — Italian sources, Japanese audio with subs) ---
+  if (CURRENT_TMDB_ID) {
+    _noRequests = false;
+    _pending++;
+    (function(tmdbEp) {
+      var sxhr = new XMLHttpRequest();
+      sxhr.open("GET", "https://streamvix.hayd.uk/stream/series/tmdb%3A" + CURRENT_TMDB_ID + "%3A" + CURRENT_SEASON + "%3A" + tmdbEp + ".json");
+      sxhr.onload = function() {
+        if (sxhr.status === 200) {
+          try {
+            var sData = JSON.parse(sxhr.responseText);
+            var sStreams = sData.streams || [];
+            for (var si = 0; si < sStreams.length; si++) {
+              var st = sStreams[si];
+              var url = st.url || "";
+              if (!url) continue;
+              var fn = url.split("/").pop() || "";
+              if (!fn) continue;
+              var fileUp = fn.toUpperCase();
+              if (fileUp.indexOf("_ITA.") > -1 && fileUp.indexOf("_SUB_ITA.") === -1) continue;
+              var isM3u8 = url.indexOf(".m3u8") > -1;
+              var isMp4 = url.indexOf(".mp4") > -1;
+              if (!isM3u8 && !isMp4) continue;
+              var pName = (st.name || "").replace(/[^a-zA-Z0-9]/g, "");
+              if (!pName) pName = "HTTP";
+              addSource({
+                url: url,
+                type: isMp4 ? "mp4" : "hls",
+                quality: "HD",
+                _provider: pName
+              });
+            }
+          } catch (e) {}
+        }
+        oneDone();
+      };
+      sxhr.onerror = function() { oneDone(); };
+      sxhr.ontimeout = function() { oneDone(); };
+      sxhr.timeout = 15000;
+      sxhr.send();
     })(num);
   }
 
@@ -1686,12 +1732,12 @@ function loadExternalIds(mediaId, anilistScore, malId) {
 function fetchMalScore(malId) {
   if (!malId) return;
   var xhr = new XMLHttpRequest();
-  xhr.open("GET", "https://api.jikan.moe/v4/anime/" + malId + "?fields=score", true);
+  xhr.open("GET", TORRENT_API + "/mal/score/" + malId, true);
   xhr.onload = function() {
     if (xhr.status !== 200) return;
     try {
       var d = JSON.parse(xhr.responseText);
-      var score = d.data && d.data.score;
+      var score = d.score;
       if (!score) return;
       var ratEl = document.getElementById("detail-ratings");
       if (!ratEl) return;
@@ -1895,7 +1941,7 @@ function closePlayer() {
 
 var _lastAnilistSearch = [];
 var _homeResults = [];
-var PROVIDER_PRIORITY = { "Bonk":1, "Ally":2, "Bee":3, "Kiwi":4, "HiAnime":5, "Gogoanime":6, "AniZone":7, "EzVidlink":8, "EzVidnest":9, "EzVidrock":10, "Moo":11 };
+var PROVIDER_PRIORITY = { "Bonk":1, "Ally":2, "Kiwi":3, "Pewe":4, "Bee":5, "Bun":6, "Nun":7, "Twin":8, "Cog":9, "Hop":10, "Telli":11, "Moo":12, "Arc":13, "Zoro":14, "Jet":15, "HiAnime":16, "Gogoanime":17, "AniZone":18, "EzVidlink":19, "EzVidnest":20, "EzVidrock":21, "EzVidsrc":22, "EzVidzee":23, "EzIcefy":24, "EzVixsrc":25, "EzPopr":26, "AnimeSaturn":27, "AnimeWorld":28 };
 
 // Auto-track episode completion on AniList
 document.getElementById("player-video").addEventListener("ended", function() {
