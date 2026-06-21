@@ -393,6 +393,11 @@ function showPage(name) {
   for (var i = 0; i < pages.length; i++) document.getElementById(pages[i] + "-page").className = "page";
   document.getElementById(name + "-page").className = "page active";
   document.body.style.overflow = (name === "player") ? "hidden" : "";
+  if (name !== "player") {
+    var v = document.getElementById("player-video");
+    if (v) { v.pause(); v.src = ""; v.innerHTML = ""; }
+    if (window._hls) { window._hls.destroy(); window._hls = null; }
+  }
 }
 
 function doHomeSearch() {
