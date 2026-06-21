@@ -672,17 +672,51 @@ function showAnilistDetail(media) {
         statusEl.innerHTML = sh + '</div>';
       }
 
-      // Season relations
+      // Season relations — map SEQUELs with "Season X" in title to their season number
       _seasonAniMap = {};
       if (m.relations) {
-        var edges = m.relations.edges || [];
-        for (var ei = 0; ei < edges.length; ei++) {
-          if (edges[ei].relationType === "SEQUEL") {
-            var node = edges[ei].node;
-            var t = (node.title && node.title.romaji) || (node.title && node.title.english) || "";
+        for (var ei = 0; ei < m.relations.edges.length; ei++) {
+          var e = m.relations.edges[ei];
+          if (e.relationType === "SEQUEL") {
+            var t = (e.node.title && e.node.title.romaji) || (e.node.title && e.node.title.english) || "";
             var sm = t.match(/Season\s+(\d+)/i);
-            if (sm) _seasonAniMap[parseInt(sm[1], 10)] = node.id;
+            if (sm) _seasonAniMap[parseInt(sm[1], 10)] = e.node.id;
           }
+        }
+      }
+      // Also check SEQUELs' SEQUELs for "Season X" entries deeper in the chain
+      if (m.relations) {
+        var _directIds = [];
+        for (var ei = 0; ei < m.relations.edges.length; ei++) {
+          if (m.relations.edges[ei].relationType === "SEQUEL") _directIds.push(m.relations.edges[ei].node.id);
+        }
+        if (_directIds.length) {
+          (function(ids) {
+            var sxhr = new XMLHttpRequest();
+            sxhr.open("POST", "https://graphql.anilist.co", true);
+            sxhr.setRequestHeader("Content-Type", "application/json");
+            sxhr.onload = function() {
+              if (sxhr.status !== 200) return;
+              try {
+                var sdata = JSON.parse(sxhr.responseText);
+                var pages = sdata && sdata.data && sdata.data.Page;
+                if (!pages || !pages.media) return;
+                for (var mi = 0; mi < pages.media.length; mi++) {
+                  var media = pages.media[mi];
+                  if (!media.relations) continue;
+                  for (var ej = 0; ej < media.relations.edges.length; ej++) {
+                    var e2 = media.relations.edges[ej];
+                    if (e2.relationType === "SEQUEL") {
+                      var t2 = (e2.node.title && e2.node.title.romaji) || (e2.node.title && e2.node.title.english) || "";
+                      var sm2 = t2.match(/Season\s+(\d+)/i);
+                      if (sm2 && !_seasonAniMap[parseInt(sm2[1], 10)]) _seasonAniMap[parseInt(sm2[1], 10)] = e2.node.id;
+                    }
+                  }
+                }
+              } catch (e) {}
+            };
+            sxhr.send(JSON.stringify({ query: "query($ids:[Int]){Page(page:1,perPage:10){media(id_in:$ids){id relations{edges{relationType node{id title{romaji}}}}}}}", variables: { ids: ids } }));
+          })(_directIds);
         }
       }
 
@@ -784,11 +818,27 @@ function switchTmdbSeason(idx) {
   if (!s) return;
   document.getElementById("ep-list").innerHTML = '<div class="loading">Loading ' + (s.name || "Season " + s.season_number) + '...</div>';
   CURRENT_SEASON = s.season_number;
-  var newAniId = _seasonAniMap && _seasonAniMap[CURRENT_SEASON] ? _seasonAniMap[CURRENT_SEASON] : _originalAniListId;
-  if (newAniId !== CURRENT_ANIME_ANILIST_ID) {
-    CURRENT_ANIME_ANILIST_ID = newAniId;
+  var setAniId = function(id) {
+    if (id !== CURRENT_ANIME_ANILIST_ID) CURRENT_ANIME_ANILIST_ID = id;
+    loadTmdbEpisodes(CURRENT_TMDB_ID, s.season_number);
+  };
+  var newAniId = _seasonAniMap && _seasonAniMap[CURRENT_SEASON] ? _seasonAniMap[CURRENT_SEASON] : 0;
+  if (newAniId) { setAniId(newAniId); }
+  else if (CURRENT_SEASON > 1 && _originalAniListId) {
+    // Follow SEQUEL chain by searching AniList for the anime + "Season N"
+    var searchTerm = CURRENT_ANIME_TITLE + " Season " + CURRENT_SEASON;
+    anilistGraphQL("query ($q: String) { Page(page: 1, perPage: 3) { media(search: $q, type: ANIME) { id title { romaji } } } }", { q: searchTerm }, function(err, data) {
+      if (!err && data && data.Page && data.Page.media && data.Page.media.length) {
+        var foundId = data.Page.media[0].id;
+        _seasonAniMap[CURRENT_SEASON] = foundId;
+        setAniId(foundId);
+      } else {
+        setAniId(_originalAniListId);
+      }
+    });
+  } else {
+    setAniId(_originalAniListId);
   }
-  loadTmdbEpisodes(CURRENT_TMDB_ID, s.season_number);
   var btns = document.querySelectorAll(".season-btn");
   for (var b = 0; b < btns.length; b++) btns[b].className = "season-btn";
   if (btns[idx]) btns[idx].className = "season-btn active";
