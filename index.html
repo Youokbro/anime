@@ -1309,6 +1309,114 @@ function playFromDetail(num) {
     })(num);
   }
 
+  // --- Self-hosted VidLink (via Vercel backend) ---
+  if (CURRENT_TMDB_ID && !SUB_ONLY) {
+    _noRequests = false;
+    _pending++;
+    (function(tmdbEp) {
+      var xhr = new XMLHttpRequest();
+      xhr.open("GET", TORRENT_API + "/stream/vidlink?tmdbId=" + CURRENT_TMDB_ID + "&season=" + CURRENT_SEASON + "&episode=" + tmdbEp + "&type=tv");
+      xhr.onload = function() {
+        if (xhr.status === 200) {
+          try {
+            var d = JSON.parse(xhr.responseText);
+            var streamList = d.sources || [];
+            for (var si = 0; si < streamList.length; si++) {
+              addSource({ url: streamList[si].url, type: streamList[si].type || "hls", quality: streamList[si].quality || "HD", _provider: "VidLink" });
+            }
+            if (d.tracks) addTracks(d.tracks);
+          } catch (e) {}
+        }
+        oneDone();
+      };
+      xhr.onerror = function() { oneDone(); };
+      xhr.ontimeout = function() { oneDone(); };
+      xhr.timeout = 15000;
+      xhr.send();
+    })(num);
+  }
+
+  // --- Self-hosted VixSrc (via Vercel backend) ---
+  if (CURRENT_TMDB_ID && !SUB_ONLY) {
+    _noRequests = false;
+    _pending++;
+    (function(tmdbEp) {
+      var xhr = new XMLHttpRequest();
+      xhr.open("GET", TORRENT_API + "/stream/vixsrc?tmdbId=" + CURRENT_TMDB_ID + "&season=" + CURRENT_SEASON + "&episode=" + tmdbEp + "&type=tv");
+      xhr.onload = function() {
+        if (xhr.status === 200) {
+          try {
+            var d = JSON.parse(xhr.responseText);
+            var streamList = d.sources || [];
+            for (var si = 0; si < streamList.length; si++) {
+              addSource({ url: streamList[si].url, type: streamList[si].type || "hls", quality: streamList[si].quality || "HD", _provider: "VixSrc" });
+            }
+            if (d.tracks) addTracks(d.tracks);
+          } catch (e) {}
+        }
+        oneDone();
+      };
+      xhr.onerror = function() { oneDone(); };
+      xhr.ontimeout = function() { oneDone(); };
+      xhr.timeout = 15000;
+      xhr.send();
+    })(num);
+  }
+
+  // --- NoTorrent (Stremio addon, via Vercel backend) ---
+  if (CURRENT_TMDB_ID && !SUB_ONLY) {
+    _noRequests = false;
+    _pending++;
+    (function(tmdbEp) {
+      var xhr = new XMLHttpRequest();
+      xhr.open("GET", TORRENT_API + "/stream/notorrent?tmdbId=" + CURRENT_TMDB_ID + "&season=" + CURRENT_SEASON + "&episode=" + tmdbEp + "&type=tv");
+      xhr.onload = function() {
+        if (xhr.status === 200) {
+          try {
+            var d = JSON.parse(xhr.responseText);
+            var streamList = d.sources || [];
+            for (var si = 0; si < streamList.length; si++) {
+              addSource({ url: streamList[si].url, type: streamList[si].type || "hls", quality: streamList[si].quality || "HD", _provider: "NoTorrent" });
+            }
+            if (d.tracks) addTracks(d.tracks);
+          } catch (e) {}
+        }
+        oneDone();
+      };
+      xhr.onerror = function() { oneDone(); };
+      xhr.ontimeout = function() { oneDone(); };
+      xhr.timeout = 15000;
+      xhr.send();
+    })(num);
+  }
+
+  // --- DahmerMovies (direct files, via Vercel backend) ---
+  if (CURRENT_TMDB_ID && !SUB_ONLY) {
+    _noRequests = false;
+    _pending++;
+    (function(tmdbEp) {
+      var xhr = new XMLHttpRequest();
+      xhr.open("GET", TORRENT_API + "/stream/dahmermovies?tmdbId=" + CURRENT_TMDB_ID + "&season=" + CURRENT_SEASON + "&episode=" + tmdbEp + "&type=tv");
+      xhr.onload = function() {
+        if (xhr.status === 200) {
+          try {
+            var d = JSON.parse(xhr.responseText);
+            var streamList = d.sources || [];
+            for (var si = 0; si < streamList.length; si++) {
+              addSource({ url: streamList[si].url, type: streamList[si].type || "mp4", quality: streamList[si].quality || "HD", _provider: "Dahmer" });
+            }
+            if (d.tracks) addTracks(d.tracks);
+          } catch (e) {}
+        }
+        oneDone();
+      };
+      xhr.onerror = function() { oneDone(); };
+      xhr.ontimeout = function() { oneDone(); };
+      xhr.timeout = 15000;
+      xhr.send();
+    })(num);
+  }
+
   if (_noRequests) {
     document.getElementById("player-controls").innerHTML = '<div class="error">No TMDB or AniList ID available</div>';
     return;
@@ -1991,7 +2099,7 @@ function closePlayer() {
 
 var _lastAnilistSearch = [];
 var _homeResults = [];
-var PROVIDER_PRIORITY = { "Bonk":1, "Ally":2, "Kiwi":3, "Pewe":4, "Bee":5, "Bun":6, "Nun":7, "Twin":8, "Cog":9, "Hop":10, "Telli":11, "Moo":12, "Arc":13, "Zoro":14, "Jet":15, "HiAnime":16, "Gogoanime":17, "AniZone":18, "EzVidlink":19, "EzVidnest":20, "EzVidrock":21, "EzVidsrc":22, "EzVidzee":23, "EzIcefy":24, "EzVixsrc":25, "EzPopr":26, "AnimeSaturn":27, "AnimeWorld":28 };
+var PROVIDER_PRIORITY = { "Bonk":1, "Ally":2, "Kiwi":3, "Pewe":4, "Bee":5, "Bun":6, "Nun":7, "Twin":8, "Cog":9, "Hop":10, "Telli":11, "Moo":12, "Arc":13, "Zoro":14, "Jet":15, "HiAnime":16, "Gogoanime":17, "AniZone":18, "EzVidlink":19, "EzVidnest":20, "EzVidrock":21, "EzVidsrc":22, "EzVidzee":23, "EzIcefy":24, "EzVixsrc":25, "EzPopr":26, "VidLink":27, "VixSrc":28, "NoTorrent":29, "Dahmer":30, "AnimeSaturn":31, "AnimeWorld":32 };
 
 // Auto-track episode completion on AniList
 document.getElementById("player-video").addEventListener("ended", function() {
