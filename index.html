@@ -1487,14 +1487,12 @@ function playFromDetail(num) {
     }
     controlsHtml += '<option value="torrent">Torrent</option>';
     controlsHtml += '</select></div>';
-    if (allTracks.length) {
-      controlsHtml += '<div class="c" style="width:auto"><label>Subs:</label></div><div class="c" style="width:auto">';
-      controlsHtml += '<select id="sub-select" onchange="changeSub(this.value)"><option value="">None</option>';
-      for (var j = 0; j < allTracks.length; j++) {
-        controlsHtml += '<option value="' + j + '">' + (allTracks[j].label || "Track " + (j+1)) + "</option>";
-      }
-      controlsHtml += '</select></div>';
+    controlsHtml += '<div class="c" style="width:auto"><label>Subs:</label></div><div class="c" style="width:auto">';
+    controlsHtml += '<select id="sub-select" onchange="changeSub(this.value)"><option value="">None</option>';
+    for (var j = 0; j < allTracks.length; j++) {
+      controlsHtml += '<option value="' + j + '">' + (allTracks[j].label || "Track " + (j+1)) + "</option>";
     }
+    controlsHtml += '</select></div>';
     controlsHtml += '<div class="c" style="width:auto;white-space:nowrap"><button onclick="prevEpisode()" style="padding:4px 12px;background:#0a0a0a;color:#eee;border:1px solid #333;border-radius:4px;cursor:pointer;font-size:13px"' + (CURRENT_EP_NUM <= 1 ? ' disabled' : '') + '>&#9664; Prev</button></div>';
     controlsHtml += '<div class="c" style="width:auto;white-space:nowrap"><button onclick="nextEpisode()" style="padding:4px 12px;background:#0a0a0a;color:#eee;border:1px solid #333;border-radius:4px;cursor:pointer;font-size:13px">Next &#9654;</button></div>';
     controlsHtml += '<div class="c" style="width:auto;white-space:nowrap"><label><input type="checkbox" id="subonly-cb" onclick="toggleSubOnly(this.checked)"' + (SUB_ONLY ? ' checked' : '') + ' style="vertical-align:middle"> Sub</label></div>';
