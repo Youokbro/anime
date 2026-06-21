@@ -1363,6 +1363,33 @@ function playFromDetail(num) {
     })(num);
   }
 
+  // --- MediaFlow + VixSrc (via Vercel backend, uses MediaFlow's VixCloud extractor) ---
+  if (CURRENT_TMDB_ID && !SUB_ONLY) {
+    _noRequests = false;
+    _pending++;
+    (function(tmdbEp) {
+      var xhr = new XMLHttpRequest();
+      xhr.open("GET", TORRENT_API + "/stream/mf-vixsrc?tmdbId=" + CURRENT_TMDB_ID + "&season=" + CURRENT_SEASON + "&episode=" + tmdbEp + "&type=tv");
+      xhr.onload = function() {
+        if (xhr.status === 200) {
+          try {
+            var d = JSON.parse(xhr.responseText);
+            var streamList = d.sources || [];
+            for (var si = 0; si < streamList.length; si++) {
+              addSource({ url: streamList[si].url, type: streamList[si].type || "hls", quality: streamList[si].quality || "HD", _provider: "MF-Vix" });
+            }
+            if (d.tracks) addTracks(d.tracks);
+          } catch (e) {}
+        }
+        oneDone();
+      };
+      xhr.onerror = function() { oneDone(); };
+      xhr.ontimeout = function() { oneDone(); };
+      xhr.timeout = 20000;
+      xhr.send();
+    })(num);
+  }
+
   // --- NoTorrent (Stremio addon, via Vercel backend) ---
   if (CURRENT_TMDB_ID && !SUB_ONLY) {
     _noRequests = false;
@@ -2099,7 +2126,7 @@ function closePlayer() {
 
 var _lastAnilistSearch = [];
 var _homeResults = [];
-var PROVIDER_PRIORITY = { "Bonk":1, "Ally":2, "Kiwi":3, "Pewe":4, "Bee":5, "Bun":6, "Nun":7, "Twin":8, "Cog":9, "Hop":10, "Telli":11, "Moo":12, "Arc":13, "Zoro":14, "Jet":15, "HiAnime":16, "Gogoanime":17, "AniZone":18, "EzVidlink":19, "EzVidnest":20, "EzVidrock":21, "EzVidsrc":22, "EzVidzee":23, "EzIcefy":24, "EzVixsrc":25, "EzPopr":26, "VidLink":27, "VixSrc":28, "NoTorrent":29, "Dahmer":30, "AnimeSaturn":31, "AnimeWorld":32 };
+var PROVIDER_PRIORITY = { "Bonk":1, "Ally":2, "Kiwi":3, "Pewe":4, "Bee":5, "Bun":6, "Nun":7, "Twin":8, "Cog":9, "Hop":10, "Telli":11, "Moo":12, "Arc":13, "Zoro":14, "Jet":15, "HiAnime":16, "Gogoanime":17, "AniZone":18, "EzVidlink":19, "EzVidnest":20, "EzVidrock":21, "EzVidsrc":22, "EzVidzee":23, "EzIcefy":24, "EzVixsrc":25, "EzPopr":26, "VidLink":27, "VixSrc":28, "MF-Vix":29, "NoTorrent":30, "Dahmer":31, "AnimeSaturn":32, "AnimeWorld":33 };
 
 // Auto-track episode completion on AniList
 document.getElementById("player-video").addEventListener("ended", function() {
