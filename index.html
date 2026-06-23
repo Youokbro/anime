@@ -777,6 +777,8 @@ function loadTmdbSeasons(tmdbId) {
   if (!tmdbId) return;
   var xhr = new XMLHttpRequest();
   xhr.open("GET", MIRURO_API + "/tmdb/tv/" + tmdbId, true);
+  xhr.timeout = 15000;
+  xhr.ontimeout = function() { document.getElementById("season-tabs").innerHTML = ''; document.getElementById("ep-list").innerHTML = '<div class="error">TMDB timed out</div>'; };
   xhr.onload = function() {
     if (xhr.status !== 200) return;
     try {
@@ -856,6 +858,8 @@ function loadTmdbEpisodes(tmdbId, seasonNum) {
   if (!tmdbId) { document.getElementById("ep-list").innerHTML = '<div class="error">No TMDB ID for episode data</div>'; return; }
   var xhr = new XMLHttpRequest();
   xhr.open("GET", MIRURO_API + "/tmdb/tv/" + tmdbId + "/season/" + seasonNum, true);
+  xhr.timeout = 15000;
+  xhr.ontimeout = function() { document.getElementById("ep-list").innerHTML = '<div class="error">TMDB timed out</div>'; };
   xhr.onload = function() {
     var el = document.getElementById("ep-list");
     if (xhr.status !== 200) { el.innerHTML = '<div class="error">Failed to load episodes</div>'; return; }
@@ -2051,6 +2055,8 @@ function fetchTmdbRating(tmdbId) {
   if (!tmdbId) return;
   var xhr = new XMLHttpRequest();
   xhr.open("GET", MIRURO_API + "/tmdb/tv/" + tmdbId, true);
+  xhr.timeout = 10000;
+  xhr.ontimeout = function() {};
   xhr.onload = function() {
     if (xhr.status !== 200) return;
     try {
@@ -2071,6 +2077,8 @@ function fetchTmdbRating(tmdbId) {
 function searchTMDB(title, callback) {
   var xhr = new XMLHttpRequest();
   xhr.open("GET", MIRURO_API + "/tmdb/search/tv?query=" + encodeURIComponent(title) + "&language=en-US");
+  xhr.timeout = 15000;
+  xhr.ontimeout = function() { callback(null); };
   xhr.onload = function() {
     if (xhr.status === 200) {
       var data = JSON.parse(xhr.responseText);
