@@ -606,6 +606,7 @@ function openAnilistResult(idx) {
 function showAnilistDetail(media) {
   CURRENT_ANIME_ID = media.id;
   CURRENT_ANIME_ANILIST_ID = media.id;
+  CURRENT_TMDB_ID = "";
   _originalAniListId = media.id;
   loadSeasonRelations(media.id);
   CURRENT_ANIME_TITLE = getTitle(media);
@@ -641,10 +642,8 @@ function showAnilistDetail(media) {
   // Search TMDB for rating + fallback TMDB ID (episodes don't wait for this)
   searchTMDB(CURRENT_ANIME_TITLE, function(tmdbId) {
     if (tmdbId) {
-      if (!CURRENT_TMDB_ID) {
-        CURRENT_TMDB_ID = tmdbId;
-        loadTmdbSeasons(tmdbId);
-      }
+      CURRENT_TMDB_ID = tmdbId;
+      loadTmdbSeasons(tmdbId);
       fetchTmdbRating(tmdbId);
     }
   });
