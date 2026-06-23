@@ -638,11 +638,13 @@ function showAnilistDetail(media) {
   ratEl.innerHTML = parts.join("  |  ");
   if (media.idMal) fetchMalScore(media.idMal);
 
-  // Fire episode loading IMMEDIATELY — search TMDB by title, don't wait for AniList
+  // Search TMDB for rating + fallback TMDB ID (episodes don't wait for this)
   searchTMDB(CURRENT_ANIME_TITLE, function(tmdbId) {
     if (tmdbId) {
-      CURRENT_TMDB_ID = tmdbId;
-      loadTmdbSeasons(tmdbId);
+      if (!CURRENT_TMDB_ID) {
+        CURRENT_TMDB_ID = tmdbId;
+        loadTmdbSeasons(tmdbId);
+      }
       fetchTmdbRating(tmdbId);
     }
   });
