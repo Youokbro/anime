@@ -180,6 +180,7 @@ document.head.appendChild(hlsScript);
   <video id="player-video" controls autoplay playsinline></video>
   <div id="player-controls" class="player-controls"></div>
   <div id="torrent-panel" class="torrent-panel" style="display:none"></div>
+  <div id="hdhub-panel" class="torrent-panel" style="display:none"></div>
   <div class="player-sub" id="player-subtitles"></div>
 </div>
 
@@ -190,6 +191,7 @@ var _failTimeout = null;
 var _episodeCache = {};
 var _currentSubIdx = -1;
 var _seedrFolderId = null;
+var _hdhubDirect = [];
 var _apiCache = {}; // Add caching for API responses
 var _pendingRequests = {}; // Track pending requests to avoid duplicates
 
@@ -913,6 +915,7 @@ function playFromDetail(num) {
   var _pending = 0;
   _triedStreams = [];
   _currentSubIdx = -1;
+  _hdhubDirect = [];
 
   function parseQuality(q) {
     if (!q) return 720;
@@ -1425,6 +1428,64 @@ function playFromDetail(num) {
     })(num);
   }
 
+  // --- AnimeSaturn (via Vercel backend) ---
+  if (CURRENT_TMDB_ID && !SUB_ONLY) {
+    _noRequests = false;
+    _pending++;
+    (function(tmdbEp) {
+      var xhr = new XMLHttpRequest();
+      xhr.open("GET", TORRENT_API + "/stream/animesaturn?tmdbId=" + CURRENT_TMDB_ID + "&season=" + CURRENT_SEASON + "&episode=" + tmdbEp + "&type=tv");
+      xhr.onload = function() {
+        if (xhr.status === 200) {
+          try {
+            var d = JSON.parse(xhr.responseText);
+            var streamList = d.sources || [];
+            for (var si = 0; si < streamList.length; si++) {
+              addSource({ url: streamList[si].url, type: streamList[si].type || "hls", quality: streamList[si].quality || "HD", _provider: "AnimeSaturn" });
+            }
+            if (d.tracks) addTracks(d.tracks);
+          } catch (e) {}
+        }
+        oneDone();
+      };
+      xhr.onerror = function() { oneDone(); };
+      xhr.ontimeout = function() { oneDone(); };
+      xhr.timeout = 25000;
+      xhr.send();
+    })(num);
+  }
+
+  // --- HDHub (direct MKV + HLS with subs, via Vercel backend) ---
+  if (CURRENT_TMDB_ID && !SUB_ONLY) {
+    _noRequests = false;
+    _pending++;
+    (function(tmdbEp) {
+      var xhr = new XMLHttpRequest();
+      xhr.open("GET", TORRENT_API + "/stream/hdhub?tmdbId=" + CURRENT_TMDB_ID + "&season=" + CURRENT_SEASON + "&episode=" + tmdbEp + "&type=tv");
+      xhr.onload = function() {
+        if (xhr.status === 200) {
+          try {
+            var d = JSON.parse(xhr.responseText);
+            var streamList = d.sources || [];
+            for (var si = 0; si < streamList.length; si++) {
+              if (streamList[si].type === "hls") {
+                addSource({ url: streamList[si].url, type: "hls", quality: streamList[si].quality || "HD", _provider: streamList[si]._provider || "HDHub" });
+              } else {
+                _hdhubDirect.push(streamList[si]);
+              }
+            }
+            if (d.tracks) addTracks(d.tracks);
+          } catch (e) {}
+        }
+        oneDone();
+      };
+      xhr.onerror = function() { oneDone(); };
+      xhr.ontimeout = function() { oneDone(); };
+      xhr.timeout = 15000;
+      xhr.send();
+    })(num);
+  }
+
   // --- DahmerMovies (direct files, via Vercel backend) ---
   if (CURRENT_TMDB_ID && !SUB_ONLY) {
     _noRequests = false;
@@ -1486,6 +1547,7 @@ function playFromDetail(num) {
       controlsHtml += '<option value="' + si + '"' + (si === 0 ? " selected" : "") + '>' + sprov + (sq ? " (" + sq + ")" : "") + '</option>';
     }
     controlsHtml += '<option value="torrent">Torrent</option>';
+    controlsHtml += '<option value="hdhub">HDHub Direct</option>';
     controlsHtml += '</select></div>';
     controlsHtml += '<div class="c" style="width:auto"><label>Subs:</label></div><div class="c" style="width:auto">';
     controlsHtml += '<select id="sub-select" onchange="changeSub(this.value)"><option value="">None</option>';
@@ -1538,6 +1600,7 @@ function playFromDetail(num) {
       html += '<option value="' + si + '">' + sprov + (sq ? " (" + sq + ")" : "") + '</option>';
     }
     html += '<option value="torrent">Torrent</option>';
+    html += '<option value="hdhub">HDHub Direct</option>';
     sel.innerHTML = html;
     if (curVal && parseInt(curVal, 10) < allSources.length) { sel.value = curVal; }
     // Update quality dropdown if new qualities appeared
@@ -1575,8 +1638,11 @@ function cleanupSeedr() {
 function switchStream(val) {
   cleanupSeedr();
   if (val === 'torrent') { openTorrentPanel(); return; }
+  if (val === 'hdhub') { openHDHubPanel(); return; }
   var el = document.getElementById('torrent-panel');
   if (el) el.style.display = 'none';
+  var el2 = document.getElementById('hdhub-panel');
+  if (el2) el2.style.display = 'none';
   var idx = parseInt(val, 10);
   if (idx >= 0 && idx < CURRENT_STREAMS.length) {
     _triedStreams = [];
@@ -1616,6 +1682,44 @@ function parseOldSize(str) {
   return n;
 }
 
+function openHDHubPanel() {
+  cleanupSeedr();
+  var hp = document.getElementById('hdhub-panel');
+  if (!hp) return;
+  var v = document.getElementById('player-video');
+  v.pause(); v.src = '';
+  if (window._hls) { window._hls.destroy(); window._hls = null; }
+  var tp = document.getElementById('torrent-panel');
+  if (tp) tp.style.display = 'none';
+  hp.style.display = 'block';
+  var items = window._hdhubDirect || [];
+  if (items.length === 0) {
+    hp.innerHTML = '<div class="torrent-status">No HDHub direct links available</div>';
+    return;
+  }
+  var html = '';
+  for (var i = 0; i < items.length; i++) {
+    var s = items[i];
+    var name = s.url.split('/').pop().replace(/</g, '&lt;') || s.quality || 'Link';
+    var prov = s._provider || 'HDHub';
+    html += '<div class="torrent-item" onclick="pickHDHubDirect(' + i + ')">';
+    html += '<div class="ttl">' + name + '</div>';
+    html += '<div class="meta"><span class="sz">' + (s.quality || 'HD') + '</span> | ' + prov + '</div>';
+    html += '</div>';
+  }
+  hp.innerHTML = html;
+}
+
+function pickHDHubDirect(idx) {
+  var items = window._hdhubDirect;
+  if (!items || idx >= items.length) return;
+  var s = items[idx];
+  var hp = document.getElementById('hdhub-panel');
+  if (hp) hp.style.display = 'none';
+  _triedStreams = [];
+  loadStream(s);
+}
+
 function openTorrentPanel() {
   cleanupSeedr();
   var tp = document.getElementById('torrent-panel');
@@ -1623,6 +1727,8 @@ function openTorrentPanel() {
   var v = document.getElementById('player-video');
   v.pause(); v.src = '';
   if (window._hls) { window._hls.destroy(); window._hls = null; }
+  var hp = document.getElementById('hdhub-panel');
+  if (hp) hp.style.display = 'none';
   tp.style.display = 'block';
 
   tp.innerHTML = '<div class="torrent-status">Searching torrents...</div>';
@@ -2127,6 +2233,10 @@ function closePlayer() {
   v.pause(); v.src = "";
   if (window._hls) { window._hls.destroy(); window._hls = null; }
   if (_failTimeout) { clearTimeout(_failTimeout); _failTimeout = null; }
+  var hp = document.getElementById('hdhub-panel');
+  if (hp) hp.style.display = 'none';
+  var tp = document.getElementById('torrent-panel');
+  if (tp) tp.style.display = 'none';
   showPage("detail");
 }
 
