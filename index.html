@@ -196,6 +196,7 @@ var _apiCache = {}; // Add caching for API responses
 var _pendingRequests = {}; // Track pending requests to avoid duplicates
 
 var MIRURO_API = "https://miruro-api-navy.vercel.app";
+var TMDB_KEY = "1865f43a0549ca50d341dd9ab8b29f49";
 var PROXY_BASE = "https://anim-proxy-worker.ahaantadi.workers.dev/";
 var TORRENT_API = "https://anime-api-nu-eight.vercel.app";
 var RELAY_API = "";
@@ -777,7 +778,7 @@ function loadTmdbSeasons(tmdbId) {
   _tmdbSeasons = [];
   if (!tmdbId) return;
   var xhr = new XMLHttpRequest();
-  xhr.open("GET", MIRURO_API + "/tmdb/tv/" + tmdbId, true);
+  xhr.open("GET", "https://api.themoviedb.org/3/tv/" + tmdbId + "?api_key=" + TMDB_KEY, true);
   xhr.timeout = 15000;
   xhr.ontimeout = function() { document.getElementById("season-tabs").innerHTML = ''; document.getElementById("ep-list").innerHTML = '<div class="error">TMDB timed out</div>'; };
   xhr.onload = function() {
@@ -858,7 +859,7 @@ function switchTmdbSeason(idx) {
 function loadTmdbEpisodes(tmdbId, seasonNum) {
   if (!tmdbId) { document.getElementById("ep-list").innerHTML = '<div class="error">No TMDB ID for episode data</div>'; return; }
   var xhr = new XMLHttpRequest();
-  xhr.open("GET", MIRURO_API + "/tmdb/tv/" + tmdbId + "/season/" + seasonNum, true);
+  xhr.open("GET", "https://api.themoviedb.org/3/tv/" + tmdbId + "/season/" + seasonNum + "?api_key=" + TMDB_KEY, true);
   xhr.timeout = 15000;
   xhr.ontimeout = function() { document.getElementById("ep-list").innerHTML = '<div class="error">TMDB timed out</div>'; };
   xhr.onload = function() {
@@ -2055,7 +2056,7 @@ function fetchMalScore(malId) {
 function fetchTmdbRating(tmdbId) {
   if (!tmdbId) return;
   var xhr = new XMLHttpRequest();
-  xhr.open("GET", MIRURO_API + "/tmdb/tv/" + tmdbId, true);
+  xhr.open("GET", "https://api.themoviedb.org/3/tv/" + tmdbId + "?api_key=" + TMDB_KEY, true);
   xhr.timeout = 10000;
   xhr.ontimeout = function() {};
   xhr.onload = function() {
@@ -2077,7 +2078,7 @@ function fetchTmdbRating(tmdbId) {
 
 function searchTMDB(title, callback) {
   var xhr = new XMLHttpRequest();
-  xhr.open("GET", MIRURO_API + "/tmdb/search/tv?query=" + encodeURIComponent(title) + "&language=en-US");
+  xhr.open("GET", "https://api.themoviedb.org/3/search/tv?api_key=" + TMDB_KEY + "&query=" + encodeURIComponent(title) + "&language=en-US");
   xhr.timeout = 15000;
   xhr.ontimeout = function() { callback(null); };
   xhr.onload = function() {
