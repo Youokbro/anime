@@ -1157,12 +1157,14 @@ function playFromDetail(num) {
   }
 
   // --- External subtitles (via backend aggregator) ---
-  _pending++;
-  (function(tmdbEp) {
-    var subUrl = TORRENT_API + "/subtitles?tmdbId=" + CURRENT_TMDB_ID + "&season=" + CURRENT_SEASON + "&episode=" + tmdbEp + "&languages=en";
-    if (CURRENT_IMDB_ID) subUrl += "&imdbId=" + CURRENT_IMDB_ID;
-    var sxhr = new XMLHttpRequest();
-    sxhr.open("GET", subUrl, true);
+  if (CURRENT_TMDB_ID) {
+    _pending++;
+    (function(tmdbEp) {
+      var subUrl = TORRENT_API + "/subtitles?tmdbId=" + CURRENT_TMDB_ID + "&season=" + CURRENT_SEASON + "&episode=" + tmdbEp + "&languages=en";
+      if (CURRENT_IMDB_ID) subUrl += "&imdbId=" + CURRENT_IMDB_ID;
+      var sxhr = new XMLHttpRequest();
+      sxhr.open("GET", subUrl, true);
+      sxhr.timeout = 10000;
     sxhr.onload = function() {
       if (sxhr.status === 200) {
         try {
