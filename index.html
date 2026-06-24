@@ -1165,28 +1165,29 @@ function playFromDetail(num) {
       var sxhr = new XMLHttpRequest();
       sxhr.open("GET", subUrl, true);
       sxhr.timeout = 10000;
-    sxhr.onload = function() {
-      if (sxhr.status === 200) {
-        try {
-          var sd = JSON.parse(sxhr.responseText);
-          var tracks = sd.tracks || [];
-          for (var ti = 0; ti < tracks.length; ti++) {
-            var found = false;
-            for (var ct = 0; ct < allTracks.length; ct++) {
-              if (allTracks[ct].file === tracks[ti].file) { found = true; break; }
+      sxhr.onload = function() {
+        if (sxhr.status === 200) {
+          try {
+            var sd = JSON.parse(sxhr.responseText);
+            var tracks = sd.tracks || [];
+            for (var ti = 0; ti < tracks.length; ti++) {
+              var found = false;
+              for (var ct = 0; ct < allTracks.length; ct++) {
+                if (allTracks[ct].file === tracks[ti].file) { found = true; break; }
+              }
+              if (!found) allTracks.push(tracks[ti]);
             }
-            if (!found) allTracks.push(tracks[ti]);
-          }
-          if (tracks.length) updateSubsDropdown();
-        } catch(e) {}
-      }
-      oneDone();
-    };
-    sxhr.onerror = function() { oneDone(); };
-    sxhr.ontimeout = function() { oneDone(); };
-    sxhr.timeout = 12000;
-    sxhr.send();
-  })(num);
+            if (tracks.length) updateSubsDropdown();
+          } catch(e) {}
+        }
+        oneDone();
+      };
+      sxhr.onerror = function() { oneDone(); };
+      sxhr.ontimeout = function() { oneDone(); };
+      sxhr.timeout = 12000;
+      sxhr.send();
+    })(num);
+  }
 
   // --- AniZone source (via Miruro-API scraper) ---
   if (CURRENT_ANIME_ANILIST_ID && !SUB_ONLY) {
@@ -2295,7 +2296,6 @@ if (document.readyState === 'loading') {
 } else {
   checkAnilistToken();
   loadHome();
-}
 }
 </script>
 </body></html>
