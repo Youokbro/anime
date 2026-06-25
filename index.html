@@ -607,6 +607,7 @@ function showAnilistDetail(media) {
   CURRENT_ANIME_ID = media.id;
   CURRENT_ANIME_ANILIST_ID = media.id;
   CURRENT_TMDB_ID = "";
+  window._anilistStreamCache = null;
   _originalAniListId = media.id;
   loadSeasonRelations(media.id);
   CURRENT_ANIME_TITLE = getTitle(media);
@@ -1344,6 +1345,76 @@ function playFromDetail(num) {
       gxhr.ontimeout = function() { oneDone(); };
       gxhr.timeout = 12000;
       gxhr.send();
+    })(num);
+  }
+
+  // --- AnilistStream (AnimeVerse HTTP streams via aniliststream.edmit.in — no torrents, no debrid) ---
+  if (CURRENT_ANIME_ANILIST_ID && !SUB_ONLY) {
+    _noRequests = false;
+    (function(epNum) {
+      var asCache = window._anilistStreamCache;
+      function doFetchAnilistStream(slug, aniId, malId, ep) {
+        _pending++;
+        var xhr = new XMLHttpRequest();
+        xhr.open("GET", "https://aniliststream.edmit.in/stream/anime/as:" + slug + ":" + (aniId || "None") + ":" + (malId || "None") + ":" + ep + ".json");
+        xhr.onload = function() {
+          if (xhr.status === 200) {
+            try {
+              var d = JSON.parse(xhr.responseText);
+              var streams = d.streams || [];
+              for (var si = 0; si < streams.length; si++) {
+                addSource({ url: streams[si].url, type: streams[si].url.indexOf(".mp4") > -1 ? "mp4" : "hls", quality: "HD", _provider: "AnilistStream" });
+              }
+            } catch(e) {}
+          }
+          oneDone();
+        };
+        xhr.onerror = function() { oneDone(); };
+        xhr.ontimeout = function() { oneDone(); };
+        xhr.timeout = 15000;
+        xhr.send();
+      }
+      if (asCache && asCache.slug) {
+        doFetchAnilistStream(asCache.slug, asCache.aniId, asCache.malId, epNum);
+      } else {
+        _pending++;
+        var sxhr = new XMLHttpRequest();
+        var sq = CURRENT_ANIME_ROMAJI || CURRENT_ANIME_TITLE;
+        sxhr.open("GET", "https://aniliststream.edmit.in/catalog/anime/as-search/search=" + encodeURIComponent(sq) + ".json");
+        sxhr.onload = function() {
+          try {
+            if (sxhr.status === 200) {
+              var cat = JSON.parse(sxhr.responseText);
+              var metas = cat.metas || [];
+              var found = null;
+              for (var mi = 0; mi < metas.length; mi++) {
+                var id = metas[mi].id || "";
+                var parts = id.split(":");
+                var slug = parts[1] || "";
+                var aniId = parts[2] || "";
+                if (aniId == CURRENT_ANIME_ANILIST_ID) {
+                  found = { slug: slug, aniId: aniId, malId: parts[3] || "None" };
+                  break;
+                }
+              }
+              if (!found && metas.length > 0) {
+                var id = metas[0].id || "";
+                var parts = id.split(":");
+                found = { slug: parts[1] || "", aniId: parts[2] || "None", malId: parts[3] || "None" };
+              }
+              if (found) {
+                window._anilistStreamCache = found;
+                doFetchAnilistStream(found.slug, found.aniId, found.malId, epNum);
+              }
+            }
+          } catch(e) {}
+          oneDone();
+        };
+        sxhr.onerror = function() { oneDone(); };
+        sxhr.ontimeout = function() { oneDone(); };
+        sxhr.timeout = 10000;
+        sxhr.send();
+      }
     })(num);
   }
 
