@@ -1392,8 +1392,13 @@ function playFromDetail(num) {
                 var parts = id.split(":");
                 var slug = parts[1] || "";
                 var aniId = parts[2] || "";
-                if (aniId == CURRENT_ANIME_ANILIST_ID) {
+                if (aniId && aniId != "None" && aniId == CURRENT_ANIME_ANILIST_ID) {
                   found = { slug: slug, aniId: aniId, malId: parts[3] || "None" };
+                  break;
+                }
+                var slugMatch = slug.match(/(\d+)$/);
+                if (slugMatch && slugMatch[1] == String(CURRENT_ANIME_ANILIST_ID)) {
+                  found = { slug: slug, aniId: String(CURRENT_ANIME_ANILIST_ID), malId: parts[3] || "None" };
                   break;
                 }
               }
