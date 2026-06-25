@@ -1638,12 +1638,13 @@ function playFromDetail(num) {
 
   function buildQualityOptions() {
     var seen = {};
-    var html = '<option value="all">All</option>';
+    var html = '';
     for (var qi = 0; qi < allSources.length; qi++) {
       var q = allSources[qi].quality || "HD";
       if (!seen[q]) {
         seen[q] = true;
-        html += '<option value="' + q + '">' + q + '</option>';
+        var sel = qi === 0 ? ' selected' : '';
+        html += '<option value="' + qi + '"' + sel + '>' + q + '</option>';
       }
     }
     return html;
@@ -1659,11 +1660,9 @@ function playFromDetail(num) {
     controlsHtml += '<div class="c" style="width:auto"><label>Server:</label></div><div class="c" style="width:auto">';
     controlsHtml += '<select id="server-select" onchange="switchStream(this.value)">';
     for (var si = 0; si < allSources.length; si++) {
-      var srv = allSources[si];
-      var sprov = srv._provider || "Source";
-      var sq = srv.quality || "HD";
-      var stype = srv.type === "mp4" ? "MP4" : "HLS";
-      controlsHtml += '<option value="' + si + '"' + (si === 0 ? " selected" : "") + '>' + sprov + ' (' + sq + ' ' + stype + ')</option>';
+      var sprov = allSources[si]._provider || "Source";
+      var sq = allSources[si].quality || "";
+      controlsHtml += '<option value="' + si + '"' + (si === 0 ? " selected" : "") + '>' + sprov + (sq ? " (" + sq + ")" : "") + '</option>';
     }
     controlsHtml += '<option value="torrent">Torrent</option>';
     controlsHtml += '<option value="hdhub">HDHub Direct</option>';
@@ -1712,25 +1711,22 @@ function playFromDetail(num) {
     var sel = document.getElementById("server-select");
     if (!sel) return;
     var curVal = sel.value;
-    var qs = document.getElementById("quality-select");
-    var qualityFilter = qs ? qs.value : "all";
     var html = '';
     for (var si = 0; si < allSources.length; si++) {
-      var s = allSources[si];
-      var q = s.quality || "HD";
-      if (qualityFilter !== "all" && q !== qualityFilter) continue;
-      var stype = s.type === "mp4" ? "MP4" : "HLS";
-      html += '<option value="' + si + '">' + (s._provider || "Source") + ' (' + q + ' ' + stype + ')</option>';
+      var sprov = allSources[si]._provider || "Source";
+      var sq = allSources[si].quality || "";
+      html += '<option value="' + si + '">' + sprov + (sq ? " (" + sq + ")" : "") + '</option>';
     }
     html += '<option value="torrent">Torrent</option>';
     html += '<option value="hdhub">HDHub Direct</option>';
     sel.innerHTML = html;
     if (curVal && parseInt(curVal, 10) < allSources.length) { sel.value = curVal; }
     // Update quality dropdown if new qualities appeared
+    var qs = document.getElementById("quality-select");
     if (qs && allSources.length) {
       var oldQ = qs.value;
       qs.innerHTML = buildQualityOptions();
-      if (oldQ && oldQ !== "all") { qs.value = oldQ; }
+      if (oldQ && parseInt(oldQ, 10) < allSources.length) { qs.value = oldQ; }
     }
     // Restore checkbox states
     var scb = document.getElementById("subonly-cb");
@@ -2345,24 +2341,9 @@ function tryNextStream(current, reason) {
 function changeQuality() {
   var sel = document.getElementById("quality-select");
   if (!sel) return;
-  var val = sel.value;
-  var serverSel = document.getElementById("server-select");
-  if (!serverSel) return;
-
-  var html = '';
-  var firstIdx = -1;
-  for (var si = 0; si < CURRENT_STREAMS.length; si++) {
-    var s = CURRENT_STREAMS[si];
-    var q = s.quality || "HD";
-    if (val !== "all" && q !== val) continue;
-    if (firstIdx === -1) firstIdx = si;
-    var stype = s.type === "mp4" ? "MP4" : "HLS";
-    html += '<option value="' + si + '">' + (s._provider || "Source") + ' (' + q + ' ' + stype + ')</option>';
-  }
-  html += '<option value="torrent">Torrent</option>';
-  html += '<option value="hdhub">HDHub Direct</option>';
-  serverSel.innerHTML = html;
-  if (firstIdx >= 0) serverSel.value = firstIdx.toString();
+  var idx = parseInt(sel.value, 10);
+  var s = CURRENT_STREAMS[idx];
+  if (s) loadStream(s);
 }
 
 function changeSub(val) {
