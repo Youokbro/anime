@@ -1092,83 +1092,91 @@ function playFromDetail(num) {
 
       function processEpData(epData, aniId, num) {
         try {
-          var provNames = ["bonk", "ally", "bee", "kiwi", "moo", "pewe", "bun", "nun", "twin", "cog", "hop", "telli", "arc", "zoro", "jet"];
+          var provNames = ["bonk", "ally", "bee", "kiwi", "moo", "pewe", "hop", "ANIMEDUNYA"];
           var maxEp = 0;
           var foundAny = false;
           for (var pi = 0; pi < provNames.length; pi++) {
             (function(provName) {
               var prov = epData.providers && epData.providers[provName];
               if (!prov) return;
-              var subEps = (prov.episodes && prov.episodes.sub) || [];
-              if (subEps.length > maxEp) maxEp = subEps.length;
-              var found = null;
-              for (var e = 0; e < subEps.length; e++) {
-                if (epOffset && subEps[e].number === num + epOffset) { found = subEps[e]; break; }
-                if (subEps[e].number === num) { found = subEps[e]; }
-              }
-              if (!found) return;
-              foundAny = true;
-              _pending++;
-              var bxhr = new XMLHttpRequest();
-              bxhr.open("GET", TORRENT_API + "/stream/miruro?path=" + found.id, true);
-              bxhr.onload = function() {
-                if (bxhr.status === 200) {
-                  try {
-                    var bData = JSON.parse(bxhr.responseText);
-                    var streams = bData.streams || [];
-                    if (!streams.length) {
-                      for (var _k in bData) {
-                        if (typeof bData[_k] === "object" && bData[_k].streams) { streams = bData[_k].streams; break; }
-                      }
-                    }
-                    for (var s = 0; s < streams.length; s++) {
-                      var st = streams[s];
-                      var url = st.url;
-                      var stype = (st.type || "").toLowerCase();
-                      if (stype === "embed") continue;
-                      if (url.indexOf(".m3u8") === -1 && url.indexOf(".mp4") === -1 && stype !== "hls" && stype !== "mp4") continue;
-                      var streamReferer = (st.referer || "https://www.miruro.tv/");
-                      var actualUrl = USE_PROXY ? (PROXY_BASE + "?url=" + encodeURIComponent(url) + "&referer=" + encodeURIComponent(streamReferer)) : url;
-                      var provNameCap = provName.charAt(0).toUpperCase() + provName.slice(1);
-                      addSource({
-                        url: actualUrl,
-                        type: stype === "mp4" || url.indexOf(".mp4") > -1 ? "mp4" : "hls",
-                        quality: st.quality || "HD",
-                        _provider: provNameCap
-                      });
-                      // Also add MediaFlow-proxied version
-                      _pending++;
-                      (function(mfUrl, mfProv, mfReferer) {
-                        var mfxhr = new XMLHttpRequest();
-                        mfxhr.open("GET", TORRENT_API + "/stream/mf-proxy?url=" + encodeURIComponent(mfUrl) + "&referer=" + encodeURIComponent(mfReferer) + "&type=hls");
-                        mfxhr.onload = function() {
-                          if (mfxhr.status === 200) {
-                            try {
-                              var mfData = JSON.parse(mfxhr.responseText);
-                              var mfStreams = mfData.sources || [];
-                              for (var msi = 0; msi < mfStreams.length; msi++) {
-                                addSource({ url: mfStreams[msi].url, type: mfStreams[msi].type || "hls", quality: mfStreams[msi].quality || "HD", _provider: "MF-" + mfProv });
-                              }
-                              if (mfData.tracks) addTracks(mfData.tracks);
-                            } catch(e) {}
+              var cats = prov.episodes || {};
+              var catNames = Object.keys(cats);
+              for (var ci = 0; ci < catNames.length; ci++) {
+                (function(cat) {
+                  var epList = cats[cat] || [];
+                  if (epList.length > maxEp) maxEp = epList.length;
+                  var found = null;
+                  for (var e = 0; e < epList.length; e++) {
+                    if (epOffset && epList[e].number === num + epOffset) { found = epList[e]; break; }
+                    if (epList[e].number === num) { found = epList[e]; }
+                  }
+                  if (!found) return;
+                  foundAny = true;
+                  var catLabel = cat === "dub" ? "Dub" : "";
+                  _pending++;
+                  var bxhr = new XMLHttpRequest();
+                  bxhr.open("GET", TORRENT_API + "/stream/miruro?path=" + found.id, true);
+                  bxhr.onload = function() {
+                    if (bxhr.status === 200) {
+                      try {
+                        var bData = JSON.parse(bxhr.responseText);
+                        var streams = bData.streams || [];
+                        if (!streams.length) {
+                          for (var _k in bData) {
+                            if (typeof bData[_k] === "object" && bData[_k].streams) { streams = bData[_k].streams; break; }
                           }
-                          oneDone();
-                        };
-                        mfxhr.onerror = function() { oneDone(); };
-                        mfxhr.ontimeout = function() { oneDone(); };
-                        mfxhr.timeout = 12000;
-                        mfxhr.send();
-                      })(url, provNameCap, streamReferer);
+                        }
+                        for (var s = 0; s < streams.length; s++) {
+                          var st = streams[s];
+                          var url = st.url;
+                          var stype = (st.type || "").toLowerCase();
+                          if (stype === "embed") continue;
+                          if (url.indexOf(".m3u8") === -1 && url.indexOf(".mp4") === -1 && stype !== "hls" && stype !== "mp4") continue;
+                          var streamReferer = (st.referer || "https://www.miruro.tv/");
+                          var actualUrl = USE_PROXY ? (PROXY_BASE + "?url=" + encodeURIComponent(url) + "&referer=" + encodeURIComponent(streamReferer)) : url;
+                          var provNameCap = provName.charAt(0).toUpperCase() + provName.slice(1);
+                          var label = provNameCap + (catLabel ? " (" + catLabel + ")" : "");
+                          addSource({
+                            url: actualUrl,
+                            type: stype === "mp4" || url.indexOf(".mp4") > -1 ? "mp4" : "hls",
+                            quality: st.quality || "HD",
+                            _provider: label
+                          });
+                          // Also add MediaFlow-proxied version
+                          _pending++;
+                          (function(mfUrl, mfProv, mfReferer) {
+                            var mfxhr = new XMLHttpRequest();
+                            mfxhr.open("GET", TORRENT_API + "/stream/mf-proxy?url=" + encodeURIComponent(mfUrl) + "&referer=" + encodeURIComponent(mfReferer) + "&type=hls");
+                            mfxhr.onload = function() {
+                              if (mfxhr.status === 200) {
+                                try {
+                                  var mfData = JSON.parse(mfxhr.responseText);
+                                  var mfStreams = mfData.sources || [];
+                                  for (var msi = 0; msi < mfStreams.length; msi++) {
+                                    addSource({ url: mfStreams[msi].url, type: mfStreams[msi].type || "hls", quality: mfStreams[msi].quality || "HD", _provider: "MF-" + mfProv });
+                                  }
+                                  if (mfData.tracks) addTracks(mfData.tracks);
+                                } catch(e) {}
+                              }
+                              oneDone();
+                            };
+                            mfxhr.onerror = function() { oneDone(); };
+                            mfxhr.ontimeout = function() { oneDone(); };
+                            mfxhr.timeout = 12000;
+                            mfxhr.send();
+                          })(url, provNameCap, streamReferer);
+                        }
+                        if (bData.subtitles) addTracks(bData.subtitles);
+                      } catch (e) {}
                     }
-                    if (bData.subtitles) addTracks(bData.subtitles);
-                  } catch (e) {}
-                }
-                oneDone();
-              };
-              bxhr.onerror = function() { oneDone(); };
-              bxhr.ontimeout = function() { oneDone(); };
-              bxhr.timeout = 12000;
-              bxhr.send();
+                    oneDone();
+                  };
+                  bxhr.onerror = function() { oneDone(); };
+                  bxhr.ontimeout = function() { oneDone(); };
+                  bxhr.timeout = 12000;
+                  bxhr.send();
+                })(catNames[ci]);
+              }
             })(provNames[pi]);
           }
           // Check if episode is beyond this AniList entry's range → try sequel
@@ -1522,6 +1530,35 @@ function playFromDetail(num) {
       xhr.onerror = function() { oneDone(); };
       xhr.ontimeout = function() { oneDone(); };
       xhr.timeout = 25000;
+      xhr.send();
+    })(num);
+    });
+  }
+
+  // --- Consumet-All (tries ALL Consumet providers: Hianime, AnimePahe, AnimeSaturn, AnimeKai, KickAssAnime, AnimeUnity) ---
+  if (!SUB_ONLY) {
+    _fireWhenTmdbReady(function() {
+    _noRequests = false;
+    _pending++;
+    (function(tmdbEp) {
+      var xhr = new XMLHttpRequest();
+      xhr.open("GET", TORRENT_API + "/stream/consumet-all?tmdbId=" + CURRENT_TMDB_ID + "&season=" + CURRENT_SEASON + "&episode=" + tmdbEp + "&type=tv");
+      xhr.onload = function() {
+        if (xhr.status === 200) {
+          try {
+            var d = JSON.parse(xhr.responseText);
+            var streamList = d.sources || [];
+            for (var si = 0; si < streamList.length; si++) {
+              addSource({ url: streamList[si].url, type: streamList[si].type || "hls", quality: streamList[si].quality || "HD", _provider: streamList[si]._provider || "Consumet" });
+            }
+            if (d.tracks) addTracks(d.tracks);
+          } catch (e) {}
+        }
+        oneDone();
+      };
+      xhr.onerror = function() { oneDone(); };
+      xhr.ontimeout = function() { oneDone(); };
+      xhr.timeout = 60000;
       xhr.send();
     })(num);
     });
