@@ -645,6 +645,7 @@ function showAnilistDetail(media) {
       CURRENT_TMDB_ID = tmdbId;
       loadTmdbSeasons(tmdbId);
       fetchTmdbRating(tmdbId);
+      _flushTmdbQueue();
     }
   });
 
@@ -750,9 +751,11 @@ function showAnilistDetail(media) {
         CURRENT_TMDB_ID = tmdbId;
         CURRENT_IMDB_ID = imdbId;
         loadTmdbSeasons(tmdbId);
+        _flushTmdbQueue();
       } else if (tmdbId) {
         CURRENT_TMDB_ID = tmdbId;
         CURRENT_IMDB_ID = imdbId;
+        _flushTmdbQueue();
       }
 
       var idEl = document.getElementById("detail-ids");
@@ -772,6 +775,7 @@ function showAnilistDetail(media) {
 var _tmdbSeasons = [];
 var _seasonAniMap = {};
 var _originalAniListId = 0;
+var _sequelAniIds = [];
 
 function loadTmdbSeasons(tmdbId) {
   _tmdbSeasons = [];
@@ -807,6 +811,7 @@ function loadTmdbSeasons(tmdbId) {
 function loadSeasonRelations(aniListId) {
   if (!aniListId) return;
   _seasonAniMap = {};
+  _sequelAniIds = [];
   anilistGraphQL("query ($id: Int) { Media(id: $id) { relations { edges { relationType node { id title { romaji english } } } } } }",
     { id: aniListId },
     function(err, data) {
@@ -818,6 +823,7 @@ function loadSeasonRelations(aniListId) {
           var t = (node.title && node.title.romaji) || (node.title && node.title.english) || "";
           var sm = t.match(/Season\s+(\d+)/i);
           if (sm) _seasonAniMap[parseInt(sm[1], 10)] = node.id;
+          _sequelAniIds.push(node.id);
         }
       }
     }
@@ -898,6 +904,27 @@ function nextEpisode() {
 function toggleSubOnly(on) {
   SUB_ONLY = on;
   localStorage.setItem("sub_only", on);
+}
+
+var _tmdbReadyWait = [];
+var _tmdbReadyTimer = null;
+function _fireWhenTmdbReady(fn) {
+  if (CURRENT_TMDB_ID) { fn(); return; }
+  _tmdbReadyWait.push(fn);
+  if (!_tmdbReadyTimer) {
+    _tmdbReadyTimer = setTimeout(function() {
+      _tmdbReadyTimer = null;
+      var q = _tmdbReadyWait.slice();
+      _tmdbReadyWait = [];
+      // Fire anyway so oneDone can show "All sources failed" if still empty
+    }, 20000);
+  }
+}
+function _flushTmdbQueue() {
+  if (_tmdbReadyTimer) { clearTimeout(_tmdbReadyTimer); _tmdbReadyTimer = null; }
+  var q = _tmdbReadyWait.slice();
+  _tmdbReadyWait = [];
+  for (var i = 0; i < q.length; i++) q[i]();
 }
 
 function playFromDetail(num) {
@@ -1001,6 +1028,8 @@ function playFromDetail(num) {
           return qb - qa;
         });
         doRender();
+      } else if (_tmdbReadyWait.length) {
+        // TMDB-dependent providers still pending — don't show error yet
       } else {
         document.getElementById("player-controls").innerHTML = '<div class="error">All sources failed</div>';
       }
@@ -1011,7 +1040,8 @@ function playFromDetail(num) {
   var _noRequests = true;
 
   // --- EzVidApi sources (TMDB-based) — skipped in sub-only mode ---
-  if (CURRENT_TMDB_ID && !SUB_ONLY) {
+  if (!SUB_ONLY) {
+    _fireWhenTmdbReady(function() {
     _noRequests = false;
     var EZ_PROVIDERS = ["vidlink", "vidnest", "vidrock", "vidsrc", "vidzee", "icefy", "vixsrc", "popr"];
     for (var ezi = 0; ezi < EZ_PROVIDERS.length; ezi++) {
@@ -1037,6 +1067,7 @@ function playFromDetail(num) {
         ezxhr.send();
       })(num, EZ_PROVIDERS[ezi]);
     }
+    });
   }
 
   // Calculate season offset for multi-season anime
@@ -1051,27 +1082,32 @@ function playFromDetail(num) {
     return offset;
   }
 
-  // --- Miruro-API providers (with episode cache) ---
+  // --- Miruro-API providers (with episode cache + multi-cour fallback) ---
   if (CURRENT_ANIME_ANILIST_ID) {
     _noRequests = false;
-    _pending++;
     (function(epNum) {
       var epOffset = getSeasonOffset();
-      function processEpData(epData) {
+      var allIds = [CURRENT_ANIME_ANILIST_ID].concat(_sequelAniIds || []);
+      var triedIdx = 0;
+
+      function processEpData(epData, aniId, num) {
         try {
           var provNames = ["bonk", "ally", "bee", "kiwi", "moo", "pewe", "bun", "nun", "twin", "cog", "hop", "telli", "arc", "zoro", "jet"];
+          var maxEp = 0;
+          var foundAny = false;
           for (var pi = 0; pi < provNames.length; pi++) {
             (function(provName) {
               var prov = epData.providers && epData.providers[provName];
               if (!prov) return;
               var subEps = (prov.episodes && prov.episodes.sub) || [];
-              // Try global numbering first (with season offset), fall back to per-season
+              if (subEps.length > maxEp) maxEp = subEps.length;
               var found = null;
               for (var e = 0; e < subEps.length; e++) {
-                if (epOffset && subEps[e].number === epNum + epOffset) { found = subEps[e]; break; }
-                if (subEps[e].number === epNum) { found = subEps[e]; }
+                if (epOffset && subEps[e].number === num + epOffset) { found = subEps[e]; break; }
+                if (subEps[e].number === num) { found = subEps[e]; }
               }
               if (!found) return;
+              foundAny = true;
               _pending++;
               var bxhr = new XMLHttpRequest();
               bxhr.open("GET", TORRENT_API + "/stream/miruro?path=" + found.id, true);
@@ -1135,34 +1171,46 @@ function playFromDetail(num) {
               bxhr.send();
             })(provNames[pi]);
           }
-          } catch (e) {}
+          // Check if episode is beyond this AniList entry's range → try sequel
+          if (!foundAny && maxEp > 0 && num > maxEp && triedIdx + 1 < allIds.length) {
+            triedIdx++;
+            fetchEpisodes(allIds[triedIdx], num - maxEp);
+            return;
+          }
+        } catch (e) {}
         oneDone();
       }
-      var cached = _episodeCache[CURRENT_ANIME_ANILIST_ID];
-      if (cached) {
-        processEpData(cached);
-      } else {
-        var mxhr = new XMLHttpRequest();
-        mxhr.open("GET", TORRENT_API + "/stream/miruro?path=episodes/" + CURRENT_ANIME_ANILIST_ID, true);
-        mxhr.onload = function() {
-          if (mxhr.status === 200) {
-            try {
-              var epData = JSON.parse(mxhr.responseText);
-              _episodeCache[CURRENT_ANIME_ANILIST_ID] = epData;
-              processEpData(epData);
-            } catch (e) { oneDone(); }
-          } else { oneDone(); }
-        };
-        mxhr.onerror = function() { oneDone(); };
-        mxhr.ontimeout = function() { oneDone(); };
-        mxhr.timeout = 15000;
-        mxhr.send();
+
+      function fetchEpisodes(aniId, num) {
+        _pending++;
+        var cached = _episodeCache[aniId];
+        if (cached) {
+          processEpData(cached, aniId, num);
+        } else {
+          var mxhr = new XMLHttpRequest();
+          mxhr.open("GET", TORRENT_API + "/stream/miruro?path=episodes/" + aniId, true);
+          mxhr.onload = function() {
+            if (mxhr.status === 200) {
+              try {
+                var epData = JSON.parse(mxhr.responseText);
+                _episodeCache[aniId] = epData;
+                processEpData(epData, aniId, num);
+              } catch (e) { oneDone(); }
+            } else { oneDone(); }
+          };
+          mxhr.onerror = function() { oneDone(); };
+          mxhr.ontimeout = function() { oneDone(); };
+          mxhr.timeout = 15000;
+          mxhr.send();
+        }
       }
+
+      fetchEpisodes(allIds[triedIdx], epNum);
     })(num);
   }
 
   // --- External subtitles (via backend aggregator) ---
-  if (CURRENT_TMDB_ID) {
+  _fireWhenTmdbReady(function() {
     _pending++;
     (function(tmdbEp) {
       var subUrl = TORRENT_API + "/subtitles?tmdbId=" + CURRENT_TMDB_ID + "&season=" + CURRENT_SEASON + "&episode=" + tmdbEp + "&languages=en";
@@ -1192,7 +1240,7 @@ function playFromDetail(num) {
       sxhr.timeout = 12000;
       sxhr.send();
     })(num);
-  }
+  });
 
   // --- AniZone source (via Miruro-API scraper) ---
   if (CURRENT_ANIME_ANILIST_ID && !SUB_ONLY) {
@@ -1292,7 +1340,7 @@ function playFromDetail(num) {
   }
 
   // --- StreamViX HTTP streams (Stremio addon — Italian sources, Japanese audio with subs) ---
-  if (CURRENT_TMDB_ID) {
+  _fireWhenTmdbReady(function() {
     _noRequests = false;
     _pending++;
     (function(tmdbEp) {
@@ -1332,10 +1380,11 @@ function playFromDetail(num) {
       sxhr.timeout = 15000;
       sxhr.send();
     })(num);
-  }
+  });
 
   // --- Self-hosted VidLink (via Vercel backend) ---
-  if (CURRENT_TMDB_ID && !SUB_ONLY) {
+  if (!SUB_ONLY) {
+    _fireWhenTmdbReady(function() {
     _noRequests = false;
     _pending++;
     (function(tmdbEp) {
@@ -1359,10 +1408,12 @@ function playFromDetail(num) {
       xhr.timeout = 15000;
       xhr.send();
     })(num);
+    });
   }
 
   // --- Self-hosted VixSrc (via Vercel backend) ---
-  if (CURRENT_TMDB_ID && !SUB_ONLY) {
+  if (!SUB_ONLY) {
+    _fireWhenTmdbReady(function() {
     _noRequests = false;
     _pending++;
     (function(tmdbEp) {
@@ -1386,10 +1437,12 @@ function playFromDetail(num) {
       xhr.timeout = 15000;
       xhr.send();
     })(num);
+    });
   }
 
   // --- MediaFlow + VixSrc (via Vercel backend, uses MediaFlow's VixCloud extractor) ---
-  if (CURRENT_TMDB_ID && !SUB_ONLY) {
+  if (!SUB_ONLY) {
+    _fireWhenTmdbReady(function() {
     _noRequests = false;
     _pending++;
     (function(tmdbEp) {
@@ -1413,10 +1466,12 @@ function playFromDetail(num) {
       xhr.timeout = 20000;
       xhr.send();
     })(num);
+    });
   }
 
   // --- NoTorrent (Stremio addon, via Vercel backend) ---
-  if (CURRENT_TMDB_ID && !SUB_ONLY) {
+  if (!SUB_ONLY) {
+    _fireWhenTmdbReady(function() {
     _noRequests = false;
     _pending++;
     (function(tmdbEp) {
@@ -1440,10 +1495,12 @@ function playFromDetail(num) {
       xhr.timeout = 15000;
       xhr.send();
     })(num);
+    });
   }
 
   // --- AnimeSaturn (via Vercel backend) ---
-  if (CURRENT_TMDB_ID && !SUB_ONLY) {
+  if (!SUB_ONLY) {
+    _fireWhenTmdbReady(function() {
     _noRequests = false;
     _pending++;
     (function(tmdbEp) {
@@ -1467,10 +1524,12 @@ function playFromDetail(num) {
       xhr.timeout = 25000;
       xhr.send();
     })(num);
+    });
   }
 
   // --- HDHub (direct MKV + HLS with subs, via Vercel backend) ---
-  if (CURRENT_TMDB_ID && !SUB_ONLY) {
+  if (!SUB_ONLY) {
+    _fireWhenTmdbReady(function() {
     _noRequests = false;
     _pending++;
     (function(tmdbEp) {
@@ -1498,10 +1557,12 @@ function playFromDetail(num) {
       xhr.timeout = 15000;
       xhr.send();
     })(num);
+    });
   }
 
   // --- DahmerMovies (direct files, via Vercel backend) ---
-  if (CURRENT_TMDB_ID && !SUB_ONLY) {
+  if (!SUB_ONLY) {
+    _fireWhenTmdbReady(function() {
     _noRequests = false;
     _pending++;
     (function(tmdbEp) {
@@ -1525,6 +1586,7 @@ function playFromDetail(num) {
       xhr.timeout = 15000;
       xhr.send();
     })(num);
+    });
   }
 
   if (_noRequests) {
