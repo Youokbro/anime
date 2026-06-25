@@ -1547,6 +1547,11 @@ function playFromDetail(num) {
                 _hdhubDirect.push(streamList[si]);
               }
             }
+            // Auto-refresh HDHub Direct panel if open
+            var hp = document.getElementById('hdhub-panel');
+            if (hp && hp.style.display !== 'none' && _hdhubDirect.length) {
+              openHDHubPanel();
+            }
             if (d.tracks) addTracks(d.tracks);
           } catch (e) {}
         }
