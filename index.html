@@ -1356,7 +1356,7 @@ function playFromDetail(num) {
       function doFetchAnilistStream(slug, aniId, malId, ep) {
         _pending++;
         var xhr = new XMLHttpRequest();
-        xhr.open("GET", "https://aniliststream.edmit.in/stream/anime/as:" + slug + ":" + (aniId || "None") + ":" + (malId || "None") + ":" + ep + ".json");
+        xhr.open("GET", "https://animeverse-worker.ahaantadi.workers.dev/stream/anime/as:" + slug + ":" + (aniId || "None") + ":" + (malId || "None") + ":" + ep + ".json");
         xhr.onload = function() {
           if (xhr.status === 200) {
             try {
@@ -1380,7 +1380,7 @@ function playFromDetail(num) {
         _pending++;
         var sxhr = new XMLHttpRequest();
         var sq = CURRENT_ANIME_ROMAJI || CURRENT_ANIME_TITLE;
-        sxhr.open("GET", "https://aniliststream.edmit.in/catalog/anime/as-search/search=" + encodeURIComponent(sq) + ".json");
+        sxhr.open("GET", "https://animeverse-worker.ahaantadi.workers.dev/catalog/anime/as-search/search=" + encodeURIComponent(sq) + ".json");
         sxhr.onload = function() {
           try {
             if (sxhr.status === 200) {
@@ -1463,6 +1463,39 @@ function playFromDetail(num) {
       sxhr.ontimeout = function() { oneDone(); };
       sxhr.timeout = 15000;
       sxhr.send();
+    })(num);
+  });
+
+  // --- yaStream (kisskh provider via yastream.tamthai.de — Asian dramas/anime fallback) ---
+  _fireWhenTmdbReady(function() {
+    _noRequests = false;
+    _pending++;
+    (function(tmdbEp) {
+      var yxhr = new XMLHttpRequest();
+      yxhr.open("GET", "https://yastream.tamthai.de/stream/series/tmdb:" + CURRENT_TMDB_ID + ":" + CURRENT_SEASON + ":" + tmdbEp + ".json");
+      yxhr.onload = function() {
+        if (yxhr.status === 200) {
+          try {
+            var yData = JSON.parse(yxhr.responseText);
+            var yStreams = yData.streams || [];
+            for (var yi = 0; yi < yStreams.length; yi++) {
+              var yst = yStreams[yi];
+              if (!yst.url) continue;
+              var yIsM3u8 = yst.url.indexOf(".m3u8") > -1;
+              var yIsMp4 = yst.url.indexOf(".mp4") > -1;
+              if (!yIsM3u8 && !yIsMp4) continue;
+              var yName = (yst.name || "").replace(/[^a-zA-Z0-9]/g, "");
+              if (!yName) yName = "yaStream";
+              addSource({ url: yst.url, type: yIsMp4 ? "mp4" : "hls", quality: "HD", _provider: yName + "(yaStream)" });
+            }
+          } catch(e) {}
+        }
+        oneDone();
+      };
+      yxhr.onerror = function() { oneDone(); };
+      yxhr.ontimeout = function() { oneDone(); };
+      yxhr.timeout = 15000;
+      yxhr.send();
     })(num);
   });
 
@@ -1674,6 +1707,18 @@ function playFromDetail(num) {
       xhr.ontimeout = function() { oneDone(); };
       xhr.timeout = 15000;
       xhr.send();
+    })(num);
+    });
+  }
+
+  // --- HDHub via CF Worker (fresh-token proxy — re-queries addon, tries URLs until one works) ---
+  if (!SUB_ONLY) {
+    _fireWhenTmdbReady(function() {
+    _noRequests = false;
+    _pending++;
+    (function(tmdbEp) {
+      addSource({ url: "https://anime-worker.ahaantadi.workers.dev/hdhub?tmdbId=" + CURRENT_TMDB_ID + "&season=" + CURRENT_SEASON + "&episode=" + tmdbEp + "&type=tv", type: "hls", quality: "HD", _provider: "HDHub(CF)" });
+      oneDone();
     })(num);
     });
   }
