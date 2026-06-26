@@ -1717,8 +1717,9 @@ function playFromDetail(num) {
     _noRequests = false;
     _pending++;
     (function(tmdbEp) {
-      addSource({ url: "https://anime-worker.ahaantadi.workers.dev/hdhub?tmdbId=" + CURRENT_TMDB_ID + "&season=" + CURRENT_SEASON + "&episode=" + tmdbEp + "&type=tv", type: "hls", quality: "HD", _provider: "HDHub(CF)" });
-      oneDone();
+      var cfUrl = "https://anime-worker.ahaantadi.workers.dev/hdhub?tmdbId=" + CURRENT_TMDB_ID + "&season=" + CURRENT_SEASON + "&episode=" + tmdbEp + "&type=tv";
+      addSource({ url: cfUrl, type: "hls", quality: "HD", _provider: "HDHub(CF)" });
+      _hdhubDirect.push({ url: cfUrl, type: "hls", quality: "HD", _provider: "HDHub(CF)" });
     })(num);
     });
   }
