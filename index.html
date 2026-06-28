@@ -239,11 +239,33 @@ function checkAnilistToken() {
       ANILIST_TOKEN = m[1];
       localStorage.setItem("anilist_token", ANILIST_TOKEN);
       history.replaceState(null, "", window.location.pathname + window.location.search);
+      anilistRefresh();
+      return;
     }
   }
-  if (h.indexOf("error=") > -1) {
-    var em = h.match(/error=([^&]+)/);
-    if (em) alert("AniList login error: " + decodeURIComponent(em[1]));
+  // PKCE flow: AniList redirected with ?code=...&state=... in query params
+  var q = window.location.search;
+  if (q.indexOf("code=") > -1) {
+    var codeMatch = q.match(/code=([^&]+)/);
+    var stateMatch = q.match(/state=([^&]+)/);
+    if (codeMatch && stateMatch) {
+      var ex = new XMLHttpRequest();
+      ex.open("GET", TORRENT_API + "/api/anilist/exchange?code=" + encodeURIComponent(codeMatch[1]) + "&verifier=" + encodeURIComponent(stateMatch[1]), true);
+      ex.onload = function() {
+        if (ex.status === 200) {
+          var d = JSON.parse(ex.responseText);
+          if (d.access_token) {
+            ANILIST_TOKEN = d.access_token;
+            localStorage.setItem("anilist_token", ANILIST_TOKEN);
+            history.replaceState(null, "", window.location.pathname);
+            anilistRefresh();
+            return;
+          }
+        }
+      };
+      ex.send();
+      return;
+    }
   }
   anilistRefresh();
 }
