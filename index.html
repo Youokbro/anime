@@ -241,6 +241,10 @@ function checkAnilistToken() {
       history.replaceState(null, "", window.location.pathname + window.location.search);
     }
   }
+  if (h.indexOf("error=") > -1) {
+    var em = h.match(/error=([^&]+)/);
+    if (em) alert("AniList login error: " + decodeURIComponent(em[1]));
+  }
   anilistRefresh();
 }
 
