@@ -253,8 +253,13 @@ function anilistPasteToken() {
 }
 
 function anilistLogin() {
-  var base = (window.location.origin + window.location.pathname).replace(/\/+$/, "") + "/";
-  window.location.href = "https://anilist.co/api/v2/oauth/authorize?client_id=" + ANILIST_CLIENT_ID + "&redirect_uri=" + encodeURIComponent(base) + "&response_type=token";
+  var arr = new Uint8Array(64);
+  crypto.getRandomValues(arr);
+  var verifier = btoa(String.fromCharCode.apply(null, arr)).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+  crypto.subtle.digest('SHA-256', new TextEncoder().encode(verifier)).then(function(hash) {
+    var challenge = btoa(String.fromCharCode.apply(null, new Uint8Array(hash))).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+    window.location.href = "https://anilist.co/api/v2/oauth/authorize?client_id=" + ANILIST_CLIENT_ID + "&response_type=code&code_challenge_method=S256&code_challenge=" + challenge + "&state=" + verifier + "&redirect_uri=" + encodeURIComponent("https://anime-api-nu-eight.vercel.app/api/anilist/callback");
+  });
 }
 
 function anilistLogout() {
@@ -282,7 +287,7 @@ function anilistRefresh() {
   var nav = document.getElementById("anilist-nav");
   if (!nav) return;
   if (!ANILIST_TOKEN) {
-    nav.innerHTML = '<a class="login-btn" href="https://anilist.co/api/v2/oauth/authorize?client_id=43388&redirect_uri=https%3A%2F%2Fyouokbro.github.io%2Fanime%2F&response_type=token">Login</a> <input id="token-input" type="text" placeholder="Paste token" style="width:70px;padding:3px 5px;background:#111;border:1px solid #333;border-radius:3px;color:#eee;font-size:10px;vertical-align:middle"> <button onclick="anilistPasteToken()" style="padding:3px 6px;background:#fff;color:#000;border:none;border-radius:3px;cursor:pointer;font-size:10px">Set</button>';
+    nav.innerHTML = '<span class="login-btn" onclick="anilistLogin()" style="cursor:pointer">Login</span> <input id="token-input" type="text" placeholder="Paste token" style="width:70px;padding:3px 5px;background:#111;border:1px solid #333;border-radius:3px;color:#eee;font-size:10px;vertical-align:middle"> <button onclick="anilistPasteToken()" style="padding:3px 6px;background:#fff;color:#000;border:none;border-radius:3px;cursor:pointer;font-size:10px">Set</button>';
     return;
   }
   nav.innerHTML = '<span class="loading" style="font-size:11px;color:#888">Loading...</span>';
@@ -290,7 +295,7 @@ function anilistRefresh() {
     if (err || !data || !data.Viewer) {
       if (err === 401) {
         ANILIST_TOKEN = ""; localStorage.removeItem("anilist_token");
-        nav.innerHTML = '<a class="login-btn" href="https://anilist.co/api/v2/oauth/authorize?client_id=43388&redirect_uri=https%3A%2F%2Fyouokbro.github.io%2Fanime%2F&response_type=token">Login</a> <input id="token-input" type="text" placeholder="Paste token" style="width:70px;padding:3px 5px;background:#111;border:1px solid #333;border-radius:3px;color:#eee;font-size:10px;vertical-align:middle"> <button onclick="anilistPasteToken()" style="padding:3px 6px;background:#fff;color:#000;border:none;border-radius:3px;cursor:pointer;font-size:10px">Set</button>';
+nav.innerHTML = '<span class="login-btn" onclick="anilistLogin()" style="cursor:pointer">Login</span> <input id="token-input" type="text" placeholder="Paste token" style="width:70px;padding:3px 5px;background:#111;border:1px solid #333;border-radius:3px;color:#eee;font-size:10px;vertical-align:middle"> <button onclick="anilistPasteToken()" style="padding:3px 6px;background:#fff;color:#000;border:none;border-radius:3px;cursor:pointer;font-size:10px">Set</button>';
       } else {
         nav.innerHTML = '<span style="font-size:11px;color:#888">Retry...</span>';
         setTimeout(function() { anilistRefresh(); }, 3000);
