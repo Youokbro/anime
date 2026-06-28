@@ -253,13 +253,7 @@ function anilistPasteToken() {
 }
 
 function anilistLogin() {
-  var arr = new Uint8Array(64);
-  crypto.getRandomValues(arr);
-  var verifier = btoa(String.fromCharCode.apply(null, arr)).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
-  crypto.subtle.digest('SHA-256', new TextEncoder().encode(verifier)).then(function(hash) {
-    var challenge = btoa(String.fromCharCode.apply(null, new Uint8Array(hash))).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
-    window.location.href = "https://anilist.co/api/v2/oauth/authorize?client_id=" + ANILIST_CLIENT_ID + "&response_type=code&code_challenge_method=S256&code_challenge=" + challenge + "&state=" + verifier + "&redirect_uri=" + encodeURIComponent("https://anime-api-nu-eight.vercel.app/api/anilist/callback");
-  });
+  window.location.href = TORRENT_API + "/api/anilist/login";
 }
 
 function anilistLogout() {
