@@ -1800,6 +1800,7 @@ function playFromDetail(num) {
     controlsHtml += '</select></div>';
     controlsHtml += '<div class="c" style="width:auto;white-space:nowrap"><button onclick="prevEpisode()" style="padding:4px 12px;background:#0a0a0a;color:#eee;border:1px solid #333;border-radius:4px;cursor:pointer;font-size:13px"' + (CURRENT_EP_NUM <= 1 ? ' disabled' : '') + '>&#9664; Prev</button></div>';
     controlsHtml += '<div class="c" style="width:auto;white-space:nowrap"><button onclick="nextEpisode()" style="padding:4px 12px;background:#0a0a0a;color:#eee;border:1px solid #333;border-radius:4px;cursor:pointer;font-size:13px">Next &#9654;</button></div>';
+    controlsHtml += '<div class="c" style="width:auto;white-space:nowrap"><button onclick="saveAnilistProgress(CURRENT_ANIME_ANILIST_ID, CURRENT_EP_NUM)" style="padding:4px 12px;background:#fff;color:#000;border:none;border-radius:4px;cursor:pointer;font-size:12px;font-weight:bold">Sync</button></div>';
     controlsHtml += '<div class="c" style="width:auto;white-space:nowrap"><label><input type="checkbox" id="subonly-cb" onclick="toggleSubOnly(this.checked)"' + (SUB_ONLY ? ' checked' : '') + ' style="vertical-align:middle"> Sub</label></div>';
     document.getElementById("player-controls").innerHTML = controlsHtml;
     updatePendingIndicator();
